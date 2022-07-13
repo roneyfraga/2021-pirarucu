@@ -1,0 +1,83 @@
+--- 
+title: "Pirarucu"
+author: "Roney Fraga Souza"
+date: "`r format(Sys.time(), '%d %B %Y - %T')`"
+site: bookdown::bookdown_site
+documentclass: book
+bibliography: [referencias.bib, packages.bib]
+# url: your book url like https://roneyfraga.com/projects/year-project-name
+# cover-image: path to the social sharing image like images/cover.jpg
+csl: abnt-ipea.csl
+link-citations: yes
+---
+
+# Introduction {#intro}
+
+Análise da literatura científica sobre Pirarucu.
+
+```{r include=FALSE}
+knitr::opts_chunk$set(cache = TRUE)
+options(scipen = 999)
+# options(width=80)
+```
+
+<!--
+Opções no chunk
+
+eval        incluir o resultado do código executado, pode ser logico ou numérico
+echo        mostrar o código 
+warning     mostrar mensagens de aviso
+error       mostrar mensagens de erro
+message     mostrar mensagens
+tidy        mostrar ajustar o código ao display, ignora identação
+comment     '##' ou qq símbolo, para os resultados dos códigos serem antecedidos por ##
+include     se falso, executa mas não inclui o chunk no relatório
+-->
+
+
+```{r eval = T, echo = F, warning = F, error = T, tidy = F, message = F}
+
+# carregar pacotes
+library(pipeR) 
+library(rio) 
+library(bibliometrix)
+library(dplyr) 
+library(tidyr)
+library(fs) 
+library(purrr) 
+library(janitor)
+library(stringr)
+library(stringi)
+library(rcrossref)
+library(ggplot2)
+library(highcharter)
+library(igraph)
+library(ggraph)
+library(tidygraph)
+library(visNetwork)
+library(DT) 
+library(birddog)
+library(tictoc)
+
+# dealing with text
+library(textclean)
+library(tm)
+library(SnowballC)
+library(RecordLinkage)
+# topic model
+library(tidytext)
+library(topicmodels)
+library(textmineR)
+library(stm)
+
+source('utils.R')
+
+caminho <- '/mnt/raid0/Pessoal/'
+# caminho <- '~/'
+```
+
+```{r include=FALSE}
+# automatically create a bib database for R packages
+knitr::write_bib(devtools::session_info()$packages$package, 'packages.bib')
+```
+

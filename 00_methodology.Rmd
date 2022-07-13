@@ -1,0 +1,30 @@
+
+# Methodology {#methodology}
+
+## Topic Modeling  
+
+Wikipedia description:
+
+* _In machine learning and natural language processing, a topic model is a type of statistical model for discovering the abstract "topics" that occur in a collection of documents. Topic modeling is a frequently used text-mining tool for discovery of hidden semantic structures in a text body._
+
+Tutoriais:
+
+* [A Friendly Introduction to Text Clustering](https://medium.com/swlh/topic-modeling-in-r-with-tidytext-and-textminer-package-latent-dirichlet-allocation-764f4483be73)
+* [YT Short Introduction to Topic Modeling](https://www.youtube.com/watch?v=p1I9Sa1lRvk)
+* [YT Introduction to Topic Modeling with R](https://www.youtube.com/watch?v=IUAHUEy1V0Q)
+* [YT David Blei Palestra](https://www.youtube.com/watch?v=FkckgwMHP2s&t=490s)
+
+
+* STM - Structural Topic Modeling [@roberts2016]
+    * permite utilizar os metadados dos documentos para melhorar a classificação
+        * data da publicação, revista, etc 
+
+* STM é uma versão atualizada do famoso método LDA [@blei2012]
+
+Crítico definir o número de tópicos [@kim2020]:
+
+* __semantic coherence__ reflects the fact that high-probability terms of a topic tend to occur together across documents under analysis [@roberts2016]. 
+* __exclusivity__ of topic terms dictates that high-probability terms in one topic should not overlap with high-probability terms in other topics, and that high-probability terms be unique and exclusive to one topic only [@bischof2012].
+
+* Outros trabalhos sobre topic modeling: @kuhn2018, @chen2020, @chen2020b, @hsu2019, @lee2020, @qian2021, @ranaei2019, @tontodimamma2020.
+

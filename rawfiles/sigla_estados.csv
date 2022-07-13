@@ -1,0 +1,28 @@
+co_uf,sigla_uf,nome_uf,regiao
+12,AC,Acre,NO
+27,AL,Alagoas,NE
+13,AM,Amazonas,NO
+16,AP,Amapá,NO
+29,BA,Bahia,NE
+23,CE,Ceará,NE
+53,DF,Distrito Federal,CO
+32,ES,Espírito Santo,SE
+52,GO,Goiás,CO
+21,MA,Maranhão,NE
+31,MG,Minas Gerais,SE
+50,MS,Mato Grosso do Sul,CO
+51,MT,Mato Grosso,CO
+15,PA,Pará,NO
+25,PB,Paraíba,NE
+26,PE,Pernambuco,NE
+22,PI,Piauí,NE
+41,PR,Paraná,SU
+33,RJ,Rio de Janeiro,SE
+24,RN,Rio Grande do Norte,NE
+11,RO,Rondônia,NO
+14,RR,Roraima,NO
+43,RS,Rio Grande do Sul,SU
+42,SC,Santa Catarina,SU
+28,SE,Sergipe,NE
+35,SP,São Paulo,SE
+17,TO,Tocantins,NO
