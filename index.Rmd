@@ -13,31 +13,15 @@ link-citations: yes
 
 # Introduction {#intro}
 
-Análise da literatura científica sobre Pirarucu.
+Review of scientific literature on Pirarucu.
 
 ```{r include=FALSE}
 knitr::opts_chunk$set(cache = TRUE)
 options(scipen = 999)
-# options(width=80)
 ```
-
-<!--
-Opções no chunk
-
-eval        incluir o resultado do código executado, pode ser logico ou numérico
-echo        mostrar o código 
-warning     mostrar mensagens de aviso
-error       mostrar mensagens de erro
-message     mostrar mensagens
-tidy        mostrar ajustar o código ao display, ignora identação
-comment     '##' ou qq símbolo, para os resultados dos códigos serem antecedidos por ##
-include     se falso, executa mas não inclui o chunk no relatório
--->
 
 
 ```{r eval = T, echo = F, warning = F, error = T, tidy = F, message = F}
-
-# carregar pacotes
 library(pipeR) 
 library(rio) 
 library(bibliometrix)
@@ -58,13 +42,12 @@ library(visNetwork)
 library(DT) 
 library(birddog)
 library(tictoc)
+library(rlist)
 
-# dealing with text
 library(textclean)
 library(tm)
 library(SnowballC)
 library(RecordLinkage)
-# topic model
 library(tidytext)
 library(topicmodels)
 library(textmineR)
@@ -73,7 +56,6 @@ library(stm)
 source('utils.R')
 
 caminho <- '/mnt/raid0/Pessoal/'
-# caminho <- '~/'
 ```
 
 ```{r include=FALSE}

@@ -1,25 +1,32 @@
 
 # Scopus  
 
-Como a quantidade de documentos retornados foi a mesma para o Scopus e o WoS, 321 publicações, optei por trabalhar com o Scopus. O Scopus permite ter maior controle dos endereços dos autores via `API rscopus`.
+Since the amount of documents returned was the same for Scopus and WoS, 358 publications, I chose to work with Scopus. Scopus allows greater control of author addresses via the `API rscopus`.
 
 Query
 
 ```
-321 document results
-( TITLE-ABS-KEY ( pirarucu )  OR  TITLE-ABS-KEY ( "arapaima gigas" ) ) 
+
+358 document results
+( TITLE-ABS-KEY ( pirarucu )  OR  TITLE-ABS-KEY ( "arapaima gigas" )  OR  TITLE-ABS-KEY ( paiche ) )  
 ```
 
-Busca feita em 2022-03-28.
+Search performed on 2022-11-12.
 
 ```{r eval = F, echo = F, warning = F, error = T, tidy = F, message = F}
 
-M <- convert2df(file = 'bibs/scopus.bib', dbsource = "scopus", format = "bibtex")
+M <- bibliometrix::convert2df(file = 'bibs/scopus_2022-11-12.bib', dbsource = "scopus", format = "bibtex")
 
 rio::export(M, 'rawfiles/m_scopus.rds') 
+
+M |>
+  tibble::as_tibble() |>
+  dplyr::select(SR_FULL, TI, DI, url) |>
+  {\(x) rio::export(x, 'rawfiles/data_supplementary.xlsx') }() 
+
 ```
 
-### Rede de colaboração entre países
+## Countries collaboration netowrk
 
 
 ```{r eval = F, echo = F, warning = FALSE, error = TRUE, tidy = FALSE, message = FALSE}
@@ -32,7 +39,7 @@ rio::import('rawfiles/m_scopus.rds') -> M
 rscopus::have_api_key()
 
 # ----------
-## testar busca no Scopus
+## 
 # M[10, ] |> dplyr::pull(TI) 
 
 # Query <- "TITLE ('ASSESSMENT OF SMALLHOLDER FARMERS ADAPTIVE CAPACITY TO CLIMATE CHANGE : USE OF A MIXED WEIGHTING SCHEME')  AND  (LIMIT-TO ( DOCTYPE , 'ar')  OR  LIMIT-TO ( DOCTYPE ,  're' ))"
@@ -47,7 +54,6 @@ rscopus::have_api_key()
 # rscopusAuthors(x)
 # ----------
 
-## busca para todos os documentos
 
 p1 <- "( TITLE ( '"
 p2 <- "' )  OR  DOI ("
@@ -63,27 +69,25 @@ my_scopus_search <- function(x) {
     rscopus::scopus_search(query = x, view = "COMPLETE", count = 200) 
 }
 
-# demorado
-# ser feito na rede da UFMT
 query |>
     purrr::map(purrr::safely(my_scopus_search)) |>
+    purrr::map(purrr::pluck, 'result') ->
+    res_previo
+
+res_previo |>
+    purrr::map(purrr::safely(rscopusAffiliation)) |>
     purrr::map(purrr::pluck, 'result') |>
-    purrr::map(rscopusAffiliation) |>
     purrr::map(tibble::as_tibble) ->
     afiliacao
 
-rio::export(afiliacao, '~/OneDrive/Rworkspace/2021-pirarucu/rawfiles/m_scopus_afilicao.rds')
-
-# demorado
-# ser feito na rede da UFMT
-# buscar financiadores dos artigos
+rio::export(afiliacao, 'rawfiles/m_scopus_afilicao.rds')
 
 query |>                                          
     purrr::map(purrr::safely(my_scopus_search)) |>
     purrr::map(purrr::pluck, 'result') ->         
     res
 
-rio::export(res, '/rawfiles/res.rds') 
+rio::export(res, 'rawfiles/res.rds') 
 
 res |>                                          
     purrr::map(purrr::safely(rscopusSponsor)) |>
@@ -91,7 +95,7 @@ res |>
     dplyr::bind_rows() |>
     dplyr::group_by(fund_sponsor) |>
     dplyr::tally(name = 'qtde', sort = T) |>
-    {\(x) rio::export(x, '/rawfiles/scopus_financiadores.xlsx') }() 
+    {\(x) rio::export(x, 'rawfiles/scopus_financiadores.xlsx') }() 
 ```
 
 ```{r eval = T, echo = F, warning = FALSE, error = TRUE, tidy = FALSE, message = FALSE}
@@ -99,20 +103,13 @@ res |>
 rio::import('rawfiles/m_scopus.rds') -> 
     M 
 
-M |>
-    tibble::as_tibble() |>
-    dplyr::select(SR, FU) 
-
 rio::import('rawfiles/m_scopus_afilicao.rds') ->
     afiliacao
 
-# gerar variável id, presente em afiliacao
 M$id <- as.character(1:nrow(M))
 
-# afiliacao |> head()
-
 # ------------
-# adicionar afiliação no arquivo M, como lista de coluna num tibble()
+# 
 afiliacao |> 
     purrr::map(janitor::clean_names) |>
     dplyr::bind_rows(.id = 'id') |>
@@ -134,7 +131,6 @@ M2 |>
     dplyr::ungroup() ->
     artigo_qtde_paises
 
-# retirar NULL, padronizar nomes, obter combinações de países no mesmo artigo, gerar lista de edges 
 afiliacao |>
     purrr::compact() |>
     purrr::map(~ .x |> janitor::clean_names()) |>
@@ -154,15 +150,11 @@ ide |>
     dplyr::filter(!is.na(V2)) ->
     ide2
 
-# criar uma rede, com pesos, normalizando A -> e B -> A com adição nos pesos
 igraph::graph.data.frame(ide2, directed = FALSE, vertices = idv) |>
     {\(x) igraph::graph.adjacency(igraph::get.adjacency(x), weighted = TRUE)}() |>
     {\(x) igraph::simplify(x, remove.multiple = T, edge.attr.comb = list(weight = 'sum'))}() |>
     tidygraph::as_tbl_graph() -> 
     net
-
-# ---------
-## encontrar quantidade de artigos com ao menos um autor de cada país
 
 M2 |>
     dplyr::select(SR, id, affiliation)  |>
@@ -182,7 +174,6 @@ net |>
     dplyr::arrange(desc(qtde_artigos)) ->
     net2
 
-## atributos da rede
 net2 |>
     tidygraph::activate(nodes) |>
     dplyr::mutate(degree = degree(net2),
@@ -231,14 +222,10 @@ net2_atributos |>
 
 rio::export(net2_atributos2, 'rawfiles/m_scopus_col_cou_atributos2.xlsx') 
 
-# para os artigos publicados em revistas sem sjr foi atribuído a pontuação de 20
 artigos3 |>
     dplyr::left_join(sjr %>>% dplyr::select(issn, sjr)) |>
     dplyr::mutate(sjr = ifelse(is.na(sjr), 20, sjr)) ->
     artigos4
-
-# ---------
-## exportar para vosviewer
 
 eb <- igraph::cluster_louvain(as.undirected(net2))
 
@@ -250,24 +237,22 @@ net2 |>
     slice_head(n = 4) |>
     print(n = Inf)
 
-# exportar para o vosviewer
 igraph::V(net2)$id <- igraph::V(net2)$name
 igraph::write_graph(net2, file = 'networks/m_scopus_col_cou.net', format = c("pajek"))
 writePajek(eb$membership, 'networks/m_scopus_col_cou_cluster.clu')
 writePajek(V(net2)$qtde_artigos, 'networks/m_scopus_col_cou.vec')
 ```
 
-[Rede de colaboração entre países - Scopus.](networks/m_scopus_col_cou.png)
-![Rede de colaboração entre países - Scopus.](networks/m_scopus_col_cou.png)
+[Countries collaboration network - Scopus.](networks/m_scopus_col_cou.png)
+![Countries collaboration network - Scopus.](networks/m_scopus_col_cou.png)
 
+## Growth rate 
 
-### Taxa de crescimento 
-
-Taxa de crescimento para os documentos obtidos no Scopus para o período de 2000 a 2021.
+Growth rate for documents obtained from Scopus for the period 2000 to 2021.
 
 ```{r eval = TRUE, echo = F, warning = FALSE, error = TRUE, tidy = FALSE, message = FALSE}
 
-M <- import('rawfiles/m_scopus.rds')
+M <- rio::import('rawfiles/m_scopus.rds')
 
 M %>>%
     count(PY, sort = F, name = 'Papers') %>>%
@@ -279,26 +264,20 @@ M %>>%
 
 d$lnp <- log(d$Papers)
 
-# ajustar parametros via mqo 
 m1 <- lm(lnp ~ trend, data = d)
 # summary(m1)
 
 beta0 <- m1$coefficients[[1]]
 beta1 <- m1$coefficients[[2]]
 
-# modelo não linear
-# 2000 é o primeiro ano da série
+# 2000 
 m2 <- nls(Papers ~ b0 * exp(b1 * (PY - 2000)), start = list(b0 = beta0, b1 = beta1), data = d)
 # summary(m2)
 
-# publications estimado
-d$predicted <- 1.76414 * exp(0.15638 * (d$PY - 2000))
+d$predicted <- 1.77285 * exp(0.15751 * (d$PY - 2000))
 
-# taxa de crescimento anual é de 
-# (exp(0.15638) - 1) * 100
-
-# o período necessário para dobrar o tempo é 
-# log(2) / 0.15638
+# (exp(0.15751) - 1) * 100
+# log(2) / 0.15751
 
 d %>>% 
     mutate(Year = PY) %>>% 
@@ -306,7 +285,7 @@ d %>>%
     (. -> d)
 
 periodo <- 2000:2024
-predicted <- tibble::tibble(PY = periodo, Predicted = round(1.76414 * exp(0.15638 * (periodo - 2000)), 0)) 
+predicted <- tibble::tibble(PY = periodo, Predicted = round(1.77285 * exp(0.15751 * (periodo - 2000)), 0)) 
 
 dplyr::full_join(d0, predicted) |>
     dplyr::rename(Year = PY) |>
@@ -325,7 +304,7 @@ dplyr::full_join(d0, predicted) |>
 #     ylab('Papers') +
 #     theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1), legend.position = "bottom")
 
-# p + ggplot2::annotate("text", x = 2009, y = 40, size = 3, label = 'Predicted Y_p = 1.76 * e ^ 0.15 (year-2000)', parse = F) 
+# p + ggplot2::annotate("text", x = 2009, y = 40, size = 3, label = 'Predicted Y_p = 1.77 * e ^ 0.15 (year-2000)', parse = F) 
 
 # ggsave('images/taxa-crescimento-scopus.png', width = 10, height = 10, units = c("cm"))
 
@@ -339,11 +318,11 @@ highcharter::hchart(d2, "column", hcaes(x = Year, y = Papers), name = "Publicati
 
 Analysis 2000-2021
 <ul>
-  <li> Growth Rate 16.9% </li>
+  <li> Growth Rate 17.05% </li>
   <li> Doubling time  4.4 Years </li>
 </ul>
 
-__Taxa de crescimento de todo o Scopus.__
+__Growth rate of the entire Scopus.__
 
 ```{r eval = TRUE, echo = F, warning = FALSE, error = TRUE, tidy = FALSE, message = FALSE}
 
@@ -358,25 +337,19 @@ d0 |>
 
 d$lnp <- log(d$Papers)
 
-# ajustar parametros via mqo 
 m1 <- lm(lnp ~ trend, data = d)
 # summary(m1)
 
 beta0 <- m1$coefficients[[1]]
 beta1 <- m1$coefficients[[2]]
 
-# modelo não linear
-# 2000 é o primeiro ano da série
+# 2000 
 m2 <- nls(Papers ~ b0 * exp(b1 * (PY - 2000)), start = list(b0 = beta0, b1 = beta1), data = d)
 # summary(m2)
 
-# publications estimado
 d$predicted <- 1.26206 * exp(0.169719 * (d$PY - 1990))
 
-# taxa de crescimento anual é de 
 # (exp(0.052582) - 1) * 100
-
-# o período necessário para dobrar o tempo é 
 # log(2) / 0.052582
 ```
 
@@ -386,7 +359,7 @@ Analysis 2000-2021
   <li> Doubling time  13 Years </li>
 </ul>
 
-### Principais revistas
+## Top Journals
 
 ```{r eval = T , echo = F}
 
@@ -408,7 +381,7 @@ S$MostRelSources |>
                                                             text = 'Download'))))  
 ```
 
-### Trabalhos mais citados
+## Most cited papers
 
 ```{r eval = T , echo = F}
 
@@ -431,9 +404,7 @@ S$MostCitedPapers |>
                                                             text = 'Download'))))  
 ```
 
-[Baixar dados dos artigos em MS Excel.](rawfiles/m_scopus_resumo.xlsx)
-
-### Análises por autor
+## Analysis by author
 
 ```{r eval = F , echo = F}
 
@@ -446,35 +417,42 @@ tibble::tibble(AU = c('TAVARES-DIAS M', 'ROUBACH R', 'VAL AL', 'AFFONSO EG', 'LI
   'Izeni Pires Farias', 'Marc André Meyers')) ->
       nomes_completos
 
+nomes_completos$siglas <- paste0('R', 1:10)
+
+
 # --------------------------------------------------
-# authorProdOverTime alterada
+# authorProdOverTime changed
 # --------------------------------------------------
 k = 10
 graph = TRUE
 
-if (!("DI" %in% names(M))){M$DI="NA"}
+if (!("DI" %in% names(M))){ M$DI = "NA"}
 M$TC <- as.numeric(M$TC)
 M$PY <- as.numeric(M$PY)
-M <- M[!is.na(M$PY),] #remove rows with missing value in PY
+M <- M[!is.na(M$PY), ] #remove rows with missing value in PY
 
-Y <- as.numeric(substr(Sys.time(),1,4))
+Y <- as.numeric(substr(Sys.time(), 1, 4))
 listAU <- (strsplit(M$AU, ";"))
 nAU <- lengths(listAU)
-df <- data.frame(AU=trimws(unlist(listAU)), SR=rep(M$SR,nAU)) 
+
+df <- data.frame(AU = trimws(unlist(listAU)), SR = rep(M$SR, nAU)) 
+
 AU <- df %>% 
   group_by(.data$AU) %>% 
   count() %>% 
   arrange(desc(.data$n)) %>% 
   ungroup() 
-k <- min(k,nrow(AU))
+
+k <- min(k, nrow(AU))
+
 AU <- AU %>% 
-  slice_head(n=k)
+  slice_head(n = k)
 
 df <- df %>% 
   right_join(AU, by = "AU") %>%
   left_join(M, by = "SR") %>% 
   select(.data$AU.x,.data$PY, .data$TI, .data$SO, .data$DI, .data$TC) %>% 
-  mutate(TCpY = .data$TC/(Y-.data$PY+1)) %>%
+  mutate(TCpY = .data$TC / (Y-.data$PY + 1)) %>%
   group_by(.data$AU.x) %>% 
   mutate(n = length(.data$AU.x)) %>% 
   ungroup() %>% 
@@ -485,24 +463,24 @@ df <- df %>%
   select(-.data$n)
 
 df2 <- dplyr::group_by(df, .data$Author,.data$year) %>%
-  dplyr::summarise(freq=length(.data$year),TC=sum(.data$TC),TCpY=sum(.data$TCpY)) %>% 
+  dplyr::summarise(freq = length(.data$year), TC = sum(.data$TC), TCpY = sum(.data$TCpY)) %>% 
   as.data.frame()
 
-df2$Author <- factor(df2$Author,levels=AU$AU[1:k])
+df2$Author <- factor(df2$Author, levels = AU$AU[1:k])
 
-x <- c(0.5,1.5*k/10)
-y <- c(min(df$year),min(df$year)+diff(range(df2$year))*0.125)
+x <- c(0.5, 1.5 * k / 10)
+y <- c(min(df$year), min(df$year) + diff(range(df2$year)) * 0.125)
 
-data("logo",envir=environment())
-logo <- grid::rasterGrob(logo,interpolate = TRUE)
+data("logo", envir = environment())
+logo <- grid::rasterGrob(logo, interpolate = TRUE)
 
 df2 |> 
   dplyr::left_join(nomes_completos |> dplyr::rename(Author = AU)) |>
   dplyr::select(- Author) |>
-  dplyr::select(Author = nomes_completos, year, freq, TC, TCpY) ->
+  dplyr::select(Author = siglas, year, freq, TC, TCpY) ->
   df2
 
-df2$Author <- factor(df2$Author,levels=nomes_completos$nomes_completos)
+df2$Author <- factor(df2$Author, levels = nomes_completos$siglas)
 
 g <- ggplot(df2, aes(x=.data$Author, y=.data$year, text = paste("Author: ", .data$Author,"\nYear: ",.data$year ,"\nN. of Articles: ",.data$freq ,"\nTotal Citations per Year: ", round(.data$TCpY,2))))+
   geom_point(aes(alpha=.data$TCpY,size = .data$freq), color="dodgerblue4")+ 
@@ -538,7 +516,7 @@ g <- ggplot(df2, aes(x=.data$Author, y=.data$year, text = paste("Author: ", .dat
 
 g
 
-ggsave('images/authorProdOverTime.png', width = 22, height = 16, units = c("cm"))
+ggsave('images/authorProdOverTime_nao_identificado.png', width = 22, height = 16, units = c("cm"))
 ```
 
 ![authorProdOverTime](images/authorProdOverTime.png)
@@ -569,12 +547,8 @@ net |>
     dplyr::filter(artigos >= 3) -> 
     net2
 
-# ---------
-## exportar para vosviewer
-
 eb <- igraph::cluster_louvain(as.undirected(net2))
 
-# exportar para o vosviewer
 igraph::V(net2)$id <- igraph::V(net2)$name
 igraph::write_graph(net2, file = 'networks/m_scopus_col_aut.net', format = c("pajek"))
 writePajek(eb$membership, 'networks/m_scopus_col_aut_cluster.clu')
@@ -582,12 +556,12 @@ writePajek(V(net2)$artigos, 'networks/m_scopus_col_aut.vec')
 
 ```
 
-[Rede de colaboração entre autores - Scopus.](networks/m_scopus_col_aut.png)
-![Rede de colaboração entre autores - Scopus.](networks/m_scopus_col_aut.png)
+[Authors collaboration network - Scopus.](networks/m_scopus_col_aut.png)
+![Authors collaboration network - Scopus.](networks/m_scopus_col_aut.png)
 
-### Artigos por país
+## Articles by country
 
-Quantidade de artigos com ao menos um autor do país.
+Number of articles with at least one author from the country.
 
 ```{r eval = T, echo = F}
 
@@ -606,1447 +580,4 @@ paises_artigos |>
                                                         list(extend = 'excel', filename = 'data')), 
                                                         text = 'Download'))))  
 ```
-
-## STM - Scopus 
-
-Títulos, Abstract e Keywords analisados via Structural Topic Modeling.
-
-```{r, eval = T, echo = F}
-
-rio::import('rawfiles/m_scopus.rds') -> 
-    M 
-
-# M |> 
-#     dplyr::filter(DT == 'ARTICLE') |>
-#     dplyr::filter(PY <= 2020) |> 
-#     nrow()
-#     dplyr::count(PY, sort = F) 
-
-M  |>
-    tibble::as_tibble() |>
-    dplyr::mutate(texto = paste(TI, AB, DE, sep = '. ')) |>
-    dplyr::select(SR, texto, PY, SO, TI, AB, DE) ->
-    scopus
-
-stm::textProcessor(documents = scopus$texto, 
-                   metadata = scopus[, c('SR')], 
-                   lowercase = TRUE,               
-                   removestopwords = TRUE,        
-                   removenumbers = FALSE,        
-                   removepunctuation = TRUE,    
-                   stem = TRUE,                
-                   wordLengths = c(3, Inf),   
-                   sparselevel = 1,          
-                   language = "en",         
-                   verbose = TRUE,         
-                   onlycharacter = TRUE,  
-                   striphtml = FALSE,       
-                   customstopwords = NULL,  
-                   v1 = FALSE) ->
-    scopus_prep
-
-# class(scopus_prep)
-# names(scopus_prep)
-
-stm::prepDocuments(scopus_prep$documents, 
-                   scopus_prep$vocab, 
-                   scopus_prep$meta, 
-                   lower.thresh = 3) ->
-    scopus_doc 
-# names(scopus_doc)
-
-# scopus_prep$documents |> head()
-# scopus_prep$vocab |> head()
-# scopus_prep$meta |> head()
-
-# ------------------------------
-## search K topics
-
-# tictoc::tic()
-# stm::searchK(documents = scopus_doc$documents, 
-#              vocab = scopus_doc$vocab,
-#              K = c(2, 5, 10:15, 20, 25,  30, 40, 50, 60),      
-#              N = 100,                                   
-#              proportion = 0.5,                          
-#              heldout.seed = 1234,                       
-#              M = 10,                                    
-#              cores = 1,                                 
-#              # prevalence = ~ ano_inicio,
-#              max.em.its = 75,
-#              data = scopus_doc$meta,
-#              init.type = "Spectral",
-#              verbose = F) ->
-#     scopus_searchK 
-# tictoc::toc()
-
-# rio::export(scopus_searchK, 'rawfiles/scopus_searchK_mod1.rds')
-
-rio::import('rawfiles/scopus_searchK_mod1.rds') -> 
-    scopus_searchK
-
-data.frame(K = unlist(scopus_searchK$results$K),
-           semcoh = unlist(scopus_searchK$results$semcoh),
-           exclus = unlist(scopus_searchK$results$exclus)) ->
-    res
-
-res$cor <- ifelse(res$K %in% c(10, 11, 12, 15, 25), 'selecionado', 'nao')
-
-ggplot2::ggplot(res, aes(x = semcoh, y = exclus)) +
-    ggplot2::geom_point(shape = 21, size = 3, position = "identity") +
-    ggplot2::geom_line() +
-    ggrepel::geom_text_repel(data = res, aes(label = K), size = 6) +
-    ggplot2::geom_vline(xintercept = res[res$cor == 'selecionado', 'semcoh'], linetype = 'dashed') +
-    ggplot2::labs(x = 'Semantic Coherence', y = 'Exclusivity', title = 'Model 1') +
-    ggplot2::theme_classic() +
-    ggplot2::theme(legend.position = "none") 
-```
-
-4 modelos para serem analisados: 
-
-- 10 tópicos
-- 11 tópicos
-- 12 tópicos
-- 25 tópicos
-
-
-### 10 tópicos
-
-```{r, eval = T, echo = F}
-
-## Modeling 
-
-# modelo sem metadados
-stm(documents = scopus_doc$documents, 
-    vocab = scopus_doc$vocab, 
-    K = 10, 
-    data = scopus_doc$meta,
-    verbose = F) ->
-    scopus_stm_fit
-
-tidytext::tidy(scopus_stm_fit) |>
-    dplyr::arrange(beta) |>
-    dplyr::group_by(topic) |>
-    dplyr::top_n(10, beta) |>
-    dplyr::arrange(-beta) |>
-    dplyr::select(topic, term) |>
-    dplyr::summarise(terms = list(term)) |>
-    dplyr::mutate(terms = purrr::map(terms, paste, collapse = ", ")) |> 
-    tidyr::unnest() ->
-    top_terms 
-
-tidytext::tidy(scopus_stm_fit, matrix = "gamma", document_names = scopus_prep$meta$nome_do_projeto) |>
-    group_by(topic) |>
-    summarise(gamma = mean(gamma)) |>
-    arrange(desc(gamma)) |>
-    left_join(top_terms, by = "topic") |>
-    mutate(topic = paste0("Topic ", topic), topic = reorder(topic, gamma)) ->
-    gamma_terms  
-
-gamma_terms |>
-    dplyr::mutate(topic = tolower(.data$topic)) |>
-    dplyr::mutate(topic = gsub(' ', '_', .data$topic)) |>
-    dplyr::mutate(gamma = round(.data$gamma, digits = 3)) |> 
-    DT::datatable(
-        extensions = 'Buttons', 
-        rownames = F, 
-        options = list(
-                    dom = 'Bfrtip', 
-                    pageLength = 12, 
-                    buttons = list(list(
-                                        extend = 'collection', 
-                                        buttons = list(list(extend = 'csv', filename = 'data'), 
-                                                        list(extend = 'excel', filename = 'data')), 
-                                                        text = 'Download'))))
-```
-
-
-```{r eval = T, echo = F, warning = FALSE, error = TRUE, tidy = FALSE, message = FALSE}
-
-tidytext::tidy(scopus_stm_fit, matrix = "theta", document_names = scopus_prep$meta$SR) |> 
-    dplyr::left_join(scopus |> dplyr::rename(document = SR)) |>
-    dplyr::distinct(.keep_all = TRUE) |> 
-    dplyr::arrange(document, topic) -> 
-    gamma_documents
-
-gamma_documents |>
-    dplyr::group_by(topic) |>
-    dplyr::arrange(dplyr::desc(gamma)) |>
-    dplyr::slice_head(n = 200) |>
-    dplyr::ungroup() ->
-    gamma_documents
-
-gamma_documents |>
-    dplyr::mutate(topic = paste('topic', topic, sep = '_')) |> 
-    dplyr::mutate(gamma = round(.data$gamma, digits = 3)) |> 
-    dplyr::select(document, topic, gamma, PY, TI, AB, DE) -> 
-    tab_top_10
-
-rio::export(tab_top_10, 'rawfiles/stm_scopus_tab_top_10.xlsx') 
-
-tab_top_10 |>
-    dplyr::select(document, topic, gamma, TI, DE, AB) |> 
-    DT::datatable(
-        rownames = FALSE,
-        filter = 'bottom',
-        extensions = 'Buttons', 
-        options = list(
-                    dom = 'Blfrtip', pageLength = 5,
-                        columnDefs = list(list(visible = FALSE, targets = c(4, 5))), 
-                        buttons = list(list(extend = 'colvis', columns = c(0, 1, 2, 3, 4, 5)))
-                        ))
-
-```
-
-[Baixar arquivo do MS Excel.](rawfiles/stm_scopus_tab_top_10.xlsx)
-
-Principal tópico do artigo.
-
-```{r eval = T, echo = F}
-
-# principais artigos por tópicos
-tidytext::tidy(scopus_stm_fit, matrix = "theta", document_names = scopus_prep$meta$SR) |> 
-    dplyr::left_join(scopus |> dplyr::rename(document = SR)) |>
-    dplyr::distinct(.keep_all = TRUE) |> 
-    dplyr::select(document, topic, gamma) |>
-    dplyr::arrange(document, topic, gamma) -> 
-    gamma_documents
-
-gamma_documents |>
-    dplyr::group_by(document) |>
-    dplyr::arrange(dplyr::desc(gamma)) |> 
-    slice_head(n = 1) |>
-    dplyr::ungroup() ->
-    documents_topic
-
-documents_topic |>
-    dplyr::group_by(topic) |>
-    dplyr::count(name = 'artigos') |>
-    dplyr::ungroup() |>
-        datatable(
-        extensions = 'Buttons', 
-        rownames = F, 
-        options = list(
-                    dom = 'Bfrtip', 
-                    pageLength = 25, 
-                    buttons = list(list(
-                                        extend = 'collection', 
-                                        buttons = list(list(extend = 'csv', filename = 'data'), 
-                                                        list(extend = 'excel', filename = 'data')), 
-                                                        text = 'Download'))))  
-
-```
-
-Principal tópico do artigo, considerando o endereço profissional dos autores. Artigos com autores em mais de um país é comtabilizado para ambos os países.
-
-```{r eval = T, echo = F}
-
-# principais artigos por tópicos
-tidytext::tidy(scopus_stm_fit, matrix = "theta", document_names = scopus_prep$meta$SR) |> 
-    dplyr::left_join(scopus |> dplyr::rename(document = SR)) |>
-    dplyr::distinct(.keep_all = TRUE) |> 
-    dplyr::select(document, topic, gamma) |>
-    dplyr::arrange(document, topic, gamma) -> 
-    gamma_documents
-
-gamma_documents |>
-    dplyr::group_by(document) |>
-    dplyr::arrange(dplyr::desc(gamma)) |> 
-    slice_head(n = 1) ->
-    documents_topic
-
-# afiliacao por artigos
-rio::import('rawfiles/m_scopus.rds') -> 
-    M 
-
-rio::import('~/OneDrive/Rworkspace/2021-pirarucu/rawfiles/m_scopus_afilicao.rds') ->
-    afiliacao
-
-# gerar variável id, presente em afiliacao
-M$id <- as.character(1:nrow(M))
-
-# adicionar afiliação no arquivo M, como lista de coluna num tibble()
-afiliacao |> 
-    purrr::map(janitor::clean_names) |>
-    dplyr::bind_rows(.id = 'id') |>
-    dplyr::group_by(id) |>
-    tidyr::nest() |>
-    dplyr::rename(affiliation = data) |>
-    dplyr::ungroup() |>
-    dplyr::right_join(M) |>
-    dplyr::select(SR, id, affiliation) -> 
-    m2
-
-m2 |> 
-    tidyr::unnest_wider(affiliation) |>
-    tidyr::unnest_longer(affiliation_country) |>
-    dplyr::select(SR, affiliation_country) |>
-    dplyr::distinct(.keep_all = TRUE) ->
-    m2
-
-documents_topic |>
-    dplyr::select(-gamma) |>
-    dplyr::ungroup() |>
-    dplyr::rename(SR = document) |> 
-    dplyr::left_join(m2) |>
-    dplyr::distinct(.keep_all = TRUE) |>
-    dplyr::filter(!is.na(affiliation_country)) |>
-    dplyr::group_by(topic) |>
-    dplyr::count(affiliation_country, name = 'artigos') |>
-    dplyr::ungroup() |>
-    dplyr::group_by(topic) |>
-    dplyr::arrange(topic, dplyr::desc(artigos)) |>
-    dplyr::slice_head(n = 5) |>
-    dplyr::mutate(pais = paste0(affiliation_country, ' (', artigos, ')')) |>
-    dplyr::summarise(pais = paste(pais, collapse = ', ')) ->
-    topic_country
-
-topic_country |>
-        datatable(
-        extensions = 'Buttons', 
-        rownames = F, 
-        options = list(
-                    dom = 'Bfrtip', 
-                    pageLength = 12, 
-                    buttons = list(list(
-                                        extend = 'collection', 
-                                        buttons = list(list(extend = 'csv', filename = 'data'), 
-                                                        list(extend = 'excel', filename = 'data')), 
-                                                        text = 'Download'))))  
-```
-
-
-### 11 tópicos
-
-```{r, eval = T, echo = F}
-
-## Modeling 
-
-# modelo sem metadados
-stm(documents = scopus_doc$documents, 
-    vocab = scopus_doc$vocab, 
-    K = 11, 
-    data = scopus_doc$meta,
-    verbose = F) ->
-    scopus_stm_fit
-
-tidytext::tidy(scopus_stm_fit) |>
-    dplyr::arrange(beta) |>
-    dplyr::group_by(topic) |>
-    dplyr::top_n(10, beta) |>
-    dplyr::arrange(-beta) |>
-    dplyr::select(topic, term) |>
-    dplyr::summarise(terms = list(term)) |>
-    dplyr::mutate(terms = purrr::map(terms, paste, collapse = ", ")) |> 
-    tidyr::unnest() ->
-    top_terms 
-
-tidytext::tidy(scopus_stm_fit, matrix = "gamma", document_names = scopus_prep$meta$nome_do_projeto) |>
-    group_by(topic) |>
-    summarise(gamma = mean(gamma)) |>
-    arrange(desc(gamma)) |>
-    left_join(top_terms, by = "topic") |>
-    mutate(topic = paste0("Topic ", topic), topic = reorder(topic, gamma)) ->
-    gamma_terms  
-
-gamma_terms |>
-    dplyr::mutate(topic = tolower(.data$topic)) |>
-    dplyr::mutate(topic = gsub(' ', '_', .data$topic)) |>
-    dplyr::mutate(gamma = round(.data$gamma, digits = 3)) |> 
-    DT::datatable(
-        extensions = 'Buttons', 
-        rownames = F, 
-        options = list(
-                    dom = 'Bfrtip', 
-                    pageLength = 12, 
-                    buttons = list(list(
-                                        extend = 'collection', 
-                                        buttons = list(list(extend = 'csv', filename = 'data'), 
-                                                        list(extend = 'excel', filename = 'data')), 
-                                                        text = 'Download'))))
-```
-
-
-```{r eval = T, echo = F, warning = FALSE, error = TRUE, tidy = FALSE, message = FALSE}
-
-tidytext::tidy(scopus_stm_fit, matrix = "theta", document_names = scopus_prep$meta$SR) |> 
-    dplyr::left_join(scopus |> dplyr::rename(document = SR)) |>
-    dplyr::distinct(.keep_all = TRUE) |> 
-    dplyr::arrange(document, topic) -> 
-    gamma_documents
-
-gamma_documents |>
-    dplyr::group_by(topic) |>
-    dplyr::arrange(dplyr::desc(gamma)) |>
-    dplyr::slice_head(n = 200) |>
-    dplyr::ungroup() ->
-    gamma_documents
-
-gamma_documents |>
-    dplyr::mutate(topic = paste('topic', topic, sep = '_')) |> 
-    dplyr::mutate(gamma = round(.data$gamma, digits = 3)) |> 
-    dplyr::select(document, topic, gamma, PY, TI, AB, DE) -> 
-    tab_top_11
-
-rio::export(tab_top_11, 'rawfiles/stm_scopus_tab_top_11.xlsx') 
-
-tab_top_11 |>
-    dplyr::select(document, topic, gamma, TI, DE, AB) |> 
-    DT::datatable(
-        rownames = FALSE,
-        filter = 'bottom',
-        extensions = 'Buttons', 
-        options = list(
-                    dom = 'Blfrtip', pageLength = 5,
-                        columnDefs = list(list(visible = FALSE, targets = c(4, 5))), 
-                        buttons = list(list(extend = 'colvis', columns = c(0, 1, 2, 3, 4, 5)))
-                        ))
-
-```
-
-[Baixar arquivo do MS Excel.](rawfiles/stm_scopus_tab_top_11.xlsx)
-
-Principal tópico do artigo.
-
-```{r eval = T, echo = F}
-
-# principais artigos por tópicos
-tidytext::tidy(scopus_stm_fit, matrix = "theta", document_names = scopus_prep$meta$SR) |> 
-    dplyr::left_join(scopus |> dplyr::rename(document = SR)) |>
-    dplyr::distinct(.keep_all = TRUE) |> 
-    dplyr::select(document, topic, gamma) |>
-    dplyr::arrange(document, topic, gamma) -> 
-    gamma_documents
-
-gamma_documents |>
-    dplyr::group_by(document) |>
-    dplyr::arrange(dplyr::desc(gamma)) |> 
-    slice_head(n = 1) |>
-    dplyr::ungroup() ->
-    documents_topic
-
-documents_topic |>
-    dplyr::group_by(topic) |>
-    dplyr::count(name = 'artigos') |>
-    dplyr::ungroup() |>
-        datatable(
-        extensions = 'Buttons', 
-        rownames = F, 
-        options = list(
-                    dom = 'Bfrtip', 
-                    pageLength = 25, 
-                    buttons = list(list(
-                                        extend = 'collection', 
-                                        buttons = list(list(extend = 'csv', filename = 'data'), 
-                                                        list(extend = 'excel', filename = 'data')), 
-                                                        text = 'Download'))))  
-
-```
-
-Principal tópico do artigo, considerando o endereço profissional dos autores. Artigos com autores em mais de um país é comtabilizado para ambos os países.
-
-```{r eval = T, echo = F}
-
-# principais artigos por tópicos
-tidytext::tidy(scopus_stm_fit, matrix = "theta", document_names = scopus_prep$meta$SR) |> 
-    dplyr::left_join(scopus |> dplyr::rename(document = SR)) |>
-    dplyr::distinct(.keep_all = TRUE) |> 
-    dplyr::select(document, topic, gamma) |>
-    dplyr::arrange(document, topic, gamma) -> 
-    gamma_documents
-
-gamma_documents |>
-    dplyr::group_by(document) |>
-    dplyr::arrange(dplyr::desc(gamma)) |> 
-    slice_head(n = 1) ->
-    documents_topic
-
-# afiliacao por artigos
-rio::import('rawfiles/m_scopus.rds') -> 
-    M 
-
-rio::import('~/OneDrive/Rworkspace/2021-pirarucu/rawfiles/m_scopus_afilicao.rds') ->
-    afiliacao
-
-# gerar variável id, presente em afiliacao
-M$id <- as.character(1:nrow(M))
-
-# adicionar afiliação no arquivo M, como lista de coluna num tibble()
-afiliacao |> 
-    purrr::map(janitor::clean_names) |>
-    dplyr::bind_rows(.id = 'id') |>
-    dplyr::group_by(id) |>
-    tidyr::nest() |>
-    dplyr::rename(affiliation = data) |>
-    dplyr::ungroup() |>
-    dplyr::right_join(M) |>
-    dplyr::select(SR, id, affiliation) -> 
-    m2
-
-m2 |> 
-    tidyr::unnest_wider(affiliation) |>
-    tidyr::unnest_longer(affiliation_country) |>
-    dplyr::select(SR, affiliation_country) |>
-    dplyr::distinct(.keep_all = TRUE) ->
-    m2
-
-documents_topic |>
-    dplyr::select(-gamma) |>
-    dplyr::ungroup() |>
-    dplyr::rename(SR = document) |> 
-    dplyr::left_join(m2) |>
-    dplyr::distinct(.keep_all = TRUE) |>
-    dplyr::filter(!is.na(affiliation_country)) |>
-    dplyr::group_by(topic) |>
-    dplyr::count(affiliation_country, name = 'artigos') |>
-    dplyr::ungroup() |>
-    dplyr::group_by(topic) |>
-    dplyr::arrange(topic, dplyr::desc(artigos)) |>
-    dplyr::slice_head(n = 5) |>
-    dplyr::mutate(pais = paste0(affiliation_country, ' (', artigos, ')')) |>
-    dplyr::summarise(pais = paste(pais, collapse = ', ')) ->
-    topic_country
-
-topic_country |>
-        datatable(
-        extensions = 'Buttons', 
-        rownames = F, 
-        options = list(
-                    dom = 'Bfrtip', 
-                    pageLength = 12, 
-                    buttons = list(list(
-                                        extend = 'collection', 
-                                        buttons = list(list(extend = 'csv', filename = 'data'), 
-                                                        list(extend = 'excel', filename = 'data')), 
-                                                        text = 'Download'))))  
-```
-
-### 12 tópicos
-
-```{r, eval = T, echo = F}
-
-## Modeling 
-
-# modelo sem metadados
-stm(documents = scopus_doc$documents, 
-    vocab = scopus_doc$vocab, 
-    K = 12, 
-    data = scopus_doc$meta,
-    verbose = F) ->
-    scopus_stm_fit
-
-tidytext::tidy(scopus_stm_fit) |>
-    dplyr::arrange(beta) |>
-    dplyr::group_by(topic) |>
-    dplyr::top_n(10, beta) |>
-    dplyr::arrange(-beta) |>
-    dplyr::select(topic, term) |>
-    dplyr::summarise(terms = list(term)) |>
-    dplyr::mutate(terms = purrr::map(terms, paste, collapse = ", ")) |> 
-    tidyr::unnest() ->
-    top_terms 
-
-tidytext::tidy(scopus_stm_fit, matrix = "gamma", document_names = scopus_prep$meta$nome_do_projeto) |>
-    group_by(topic) |>
-    summarise(gamma = mean(gamma)) |>
-    arrange(desc(gamma)) |>
-    left_join(top_terms, by = "topic") |>
-    mutate(topic = paste0("Topic ", topic), topic = reorder(topic, gamma)) ->
-    gamma_terms  
-
-gamma_terms |>
-    dplyr::mutate(topic = tolower(.data$topic)) |>
-    dplyr::mutate(topic = gsub(' ', '_', .data$topic)) |>
-    dplyr::mutate(gamma = round(.data$gamma, digits = 3)) |> 
-    DT::datatable(
-        extensions = 'Buttons', 
-        rownames = F, 
-        options = list(
-                    dom = 'Bfrtip', 
-                    pageLength = 12, 
-                    buttons = list(list(
-                                        extend = 'collection', 
-                                        buttons = list(list(extend = 'csv', filename = 'data'), 
-                                                        list(extend = 'excel', filename = 'data')), 
-                                                        text = 'Download'))))
-```
-
-
-```{r eval = T, echo = F, warning = FALSE, error = TRUE, tidy = FALSE, message = FALSE}
-
-tidytext::tidy(scopus_stm_fit, matrix = "theta", document_names = scopus_prep$meta$SR) |> 
-    dplyr::left_join(scopus |> dplyr::rename(document = SR)) |>
-    dplyr::distinct(.keep_all = TRUE) |> 
-    dplyr::arrange(document, topic) -> 
-    gamma_documents
-
-gamma_documents |>
-    dplyr::group_by(topic) |>
-    dplyr::arrange(dplyr::desc(gamma)) |>
-    dplyr::slice_head(n = 200) |>
-    dplyr::ungroup() ->
-    gamma_documents
-
-gamma_documents |>
-    dplyr::mutate(topic = paste('topic', topic, sep = '_')) |> 
-    dplyr::mutate(gamma = round(.data$gamma, digits = 3)) |> 
-    dplyr::select(document, topic, gamma, PY, TI, AB, DE) -> 
-    tab_top_12
-
-rio::export(tab_top_12, 'rawfiles/stm_scopus_tab_top_12.xlsx') 
-
-tab_top_12 |>
-    dplyr::select(document, topic, gamma, TI, DE, AB) |> 
-    DT::datatable(
-        rownames = FALSE,
-        filter = 'bottom',
-        extensions = 'Buttons', 
-        options = list(
-                    dom = 'Blfrtip', pageLength = 5,
-                        columnDefs = list(list(visible = FALSE, targets = c(4, 5))), 
-                        buttons = list(list(extend = 'colvis', columns = c(0, 1, 2, 3, 4, 5)))
-                        ))
-
-
-```
-
-[Baixar arquivo do MS Excel.](rawfiles/stm_scopus_tab_top_12.xlsx)
-
-Principal tópico do artigo.
-
-```{r eval = T, echo = F}
-
-# principais artigos por tópicos
-tidytext::tidy(scopus_stm_fit, matrix = "theta", document_names = scopus_prep$meta$SR) |> 
-    dplyr::left_join(scopus |> dplyr::rename(document = SR)) |>
-    dplyr::distinct(.keep_all = TRUE) |> 
-    dplyr::select(document, topic, gamma) |>
-    dplyr::arrange(document, topic, gamma) -> 
-    gamma_documents
-
-gamma_documents |>
-    dplyr::group_by(document) |>
-    dplyr::arrange(dplyr::desc(gamma)) |> 
-    slice_head(n = 1) |>
-    dplyr::ungroup() ->
-    documents_topic
-
-documents_topic |>
-    dplyr::group_by(topic) |>
-    dplyr::count(name = 'artigos') |>
-    dplyr::ungroup() |>
-        datatable(
-        extensions = 'Buttons', 
-        rownames = F, 
-        options = list(
-                    dom = 'Bfrtip', 
-                    pageLength = 25, 
-                    buttons = list(list(
-                                        extend = 'collection', 
-                                        buttons = list(list(extend = 'csv', filename = 'data'), 
-                                                        list(extend = 'excel', filename = 'data')), 
-                                                        text = 'Download'))))  
-
-```
-
-Principal tópico do artigo, considerando o endereço profissional dos autores. Artigos com autores em mais de um país é comtabilizado para ambos os países.
-
-```{r eval = T, echo = F}
-
-# principais artigos por tópicos
-tidytext::tidy(scopus_stm_fit, matrix = "theta", document_names = scopus_prep$meta$SR) |> 
-    dplyr::left_join(scopus |> dplyr::rename(document = SR)) |>
-    dplyr::distinct(.keep_all = TRUE) |> 
-    dplyr::select(document, topic, gamma) |>
-    dplyr::arrange(document, topic, gamma) -> 
-    gamma_documents
-
-gamma_documents |>
-    dplyr::group_by(document) |>
-    dplyr::arrange(dplyr::desc(gamma)) |> 
-    slice_head(n = 1) ->
-    documents_topic
-
-# afiliacao por artigos
-rio::import('rawfiles/m_scopus.rds') -> 
-    M 
-
-rio::import('~/OneDrive/Rworkspace/2021-pirarucu/rawfiles/m_scopus_afilicao.rds') ->
-    afiliacao
-
-# gerar variável id, presente em afiliacao
-M$id <- as.character(1:nrow(M))
-
-# adicionar afiliação no arquivo M, como lista de coluna num tibble()
-afiliacao |> 
-    purrr::map(janitor::clean_names) |>
-    dplyr::bind_rows(.id = 'id') |>
-    dplyr::group_by(id) |>
-    tidyr::nest() |>
-    dplyr::rename(affiliation = data) |>
-    dplyr::ungroup() |>
-    dplyr::right_join(M) |>
-    dplyr::select(SR, id, affiliation) -> 
-    m2
-
-m2 |> 
-    tidyr::unnest_wider(affiliation) |>
-    tidyr::unnest_longer(affiliation_country) |>
-    dplyr::select(SR, affiliation_country) |>
-    dplyr::distinct(.keep_all = TRUE) ->
-    m2
-
-documents_topic |>
-    dplyr::select(-gamma) |>
-    dplyr::ungroup() |>
-    dplyr::rename(SR = document) |> 
-    dplyr::left_join(m2) |>
-    dplyr::distinct(.keep_all = TRUE) |>
-    dplyr::filter(!is.na(affiliation_country)) |>
-    dplyr::group_by(topic) |>
-    dplyr::count(affiliation_country, name = 'artigos') |>
-    dplyr::ungroup() |>
-    dplyr::group_by(topic) |>
-    dplyr::arrange(topic, dplyr::desc(artigos)) |>
-    dplyr::slice_head(n = 5) |>
-    dplyr::mutate(pais = paste0(affiliation_country, ' (', artigos, ')')) |>
-    dplyr::summarise(pais = paste(pais, collapse = ', ')) ->
-    topic_country
-
-topic_country |>
-        datatable(
-        extensions = 'Buttons', 
-        rownames = F, 
-        options = list(
-                    dom = 'Bfrtip', 
-                    pageLength = 12, 
-                    buttons = list(list(
-                                        extend = 'collection', 
-                                        buttons = list(list(extend = 'csv', filename = 'data'), 
-                                                        list(extend = 'excel', filename = 'data')), 
-                                                        text = 'Download'))))  
-```
-
-### 15 tópicos
-
-```{r, eval = T, echo = F}
-
-## Modeling 
-
-# modelo sem metadados
-stm(documents = scopus_doc$documents, 
-    vocab = scopus_doc$vocab, 
-    K = 15, 
-    data = scopus_doc$meta,
-    verbose = F) ->
-    scopus_stm_fit
-
-tidytext::tidy(scopus_stm_fit) |>
-    dplyr::arrange(beta) |>
-    dplyr::group_by(topic) |>
-    dplyr::top_n(10, beta) |>
-    dplyr::arrange(-beta) |>
-    dplyr::select(topic, term) |>
-    dplyr::summarise(terms = list(term)) |>
-    dplyr::mutate(terms = purrr::map(terms, paste, collapse = ", ")) |> 
-    tidyr::unnest() ->
-    top_terms 
-
-tidytext::tidy(scopus_stm_fit, matrix = "gamma", document_names = scopus_prep$meta$nome_do_projeto) |>
-    group_by(topic) |>
-    summarise(gamma = mean(gamma)) |>
-    arrange(desc(gamma)) |>
-    left_join(top_terms, by = "topic") |>
-    mutate(topic = paste0("Topic ", topic), topic = reorder(topic, gamma)) ->
-    gamma_terms  
-
-gamma_terms |>
-    dplyr::mutate(topic = tolower(.data$topic)) |>
-    dplyr::mutate(topic = gsub(' ', '_', .data$topic)) |>
-    dplyr::mutate(gamma = round(.data$gamma, digits = 3)) |> 
-    DT::datatable(
-        extensions = 'Buttons', 
-        rownames = F, 
-        options = list(
-                    dom = 'Bfrtip', 
-                    pageLength = 15, 
-                    buttons = list(list(
-                                        extend = 'collection', 
-                                        buttons = list(list(extend = 'csv', filename = 'data'), 
-                                                        list(extend = 'excel', filename = 'data')), 
-                                                        text = 'Download'))))
-```
-
-
-```{r eval = T, echo = F, warning = FALSE, error = TRUE, tidy = FALSE, message = FALSE}
-
-tidytext::tidy(scopus_stm_fit, matrix = "theta", document_names = scopus_prep$meta$SR) |> 
-    dplyr::left_join(scopus |> dplyr::rename(document = SR)) |>
-    dplyr::distinct(.keep_all = TRUE) |> 
-    dplyr::arrange(document, topic) -> 
-    gamma_documents
-
-gamma_documents |>
-    dplyr::group_by(topic) |>
-    dplyr::arrange(dplyr::desc(gamma)) |>
-    dplyr::slice_head(n = 200) |>
-    dplyr::ungroup() ->
-    gamma_documents
-
-gamma_documents |>
-    dplyr::mutate(topic = paste('topic', topic, sep = '_')) |> 
-    dplyr::mutate(gamma = round(.data$gamma, digits = 3)) |> 
-    dplyr::select(document, topic, gamma, PY, TI, AB, DE) -> 
-    tab_top_15
-
-rio::export(tab_top_15, 'rawfiles/stm_scopus_tab_top_15.xlsx') 
-
-tab_top_15 |>
-    dplyr::select(document, topic, gamma, TI, DE, AB) |> 
-    DT::datatable(
-        rownames = FALSE,
-        filter = 'bottom',
-        extensions = 'Buttons', 
-        options = list(
-                    dom = 'Blfrtip', pageLength = 5,
-                        columnDefs = list(list(visible = FALSE, targets = c(4, 5))), 
-                        buttons = list(list(extend = 'colvis', columns = c(0, 1, 2, 3, 4, 5)))
-                        ))
-
-
-```
-
-[Baixar arquivo do MS Excel.](rawfiles/stm_scopus_tab_top_15.xlsx)
-
-Principal tópico do artigo.
-
-```{r eval = T, echo = F}
-
-# principais artigos por tópicos
-tidytext::tidy(scopus_stm_fit, matrix = "theta", document_names = scopus_prep$meta$SR) |> 
-    dplyr::left_join(scopus |> dplyr::rename(document = SR)) |>
-    dplyr::distinct(.keep_all = TRUE) |> 
-    dplyr::select(document, topic, gamma) |>
-    dplyr::arrange(document, topic, gamma) -> 
-    gamma_documents
-
-gamma_documents |>
-    dplyr::group_by(document) |>
-    dplyr::arrange(dplyr::desc(gamma)) |> 
-    slice_head(n = 1) |>
-    dplyr::ungroup() ->
-    documents_topic
-
-documents_topic |>
-    dplyr::group_by(topic) |>
-    dplyr::count(name = 'artigos') |>
-    dplyr::ungroup() |>
-        datatable(
-        extensions = 'Buttons', 
-        rownames = F, 
-        options = list(
-                    dom = 'Bfrtip', 
-                    pageLength = 25, 
-                    buttons = list(list(
-                                        extend = 'collection', 
-                                        buttons = list(list(extend = 'csv', filename = 'data'), 
-                                                        list(extend = 'excel', filename = 'data')), 
-                                                        text = 'Download'))))  
-
-```
-
-Principal tópico do artigo, considerando o endereço profissional dos autores. Artigos com autores em mais de um país é comtabilizado para ambos os países.
-
-```{r eval = T, echo = F}
-
-# principais artigos por tópicos
-tidytext::tidy(scopus_stm_fit, matrix = "theta", document_names = scopus_prep$meta$SR) |> 
-    dplyr::left_join(scopus |> dplyr::rename(document = SR)) |>
-    dplyr::distinct(.keep_all = TRUE) |> 
-    dplyr::select(document, topic, gamma) |>
-    dplyr::arrange(document, topic, gamma) -> 
-    gamma_documents
-
-gamma_documents |>
-    dplyr::group_by(document) |>
-    dplyr::arrange(dplyr::desc(gamma)) |> 
-    slice_head(n = 1) ->
-    documents_topic
-
-# afiliacao por artigos
-rio::import('rawfiles/m_scopus.rds') -> 
-    M 
-
-rio::import('~/OneDrive/Rworkspace/2021-pirarucu/rawfiles/m_scopus_afilicao.rds') ->
-    afiliacao
-
-# gerar variável id, presente em afiliacao
-M$id <- as.character(1:nrow(M))
-
-# adicionar afiliação no arquivo M, como lista de coluna num tibble()
-afiliacao |> 
-    purrr::map(janitor::clean_names) |>
-    dplyr::bind_rows(.id = 'id') |>
-    dplyr::group_by(id) |>
-    tidyr::nest() |>
-    dplyr::rename(affiliation = data) |>
-    dplyr::ungroup() |>
-    dplyr::right_join(M) |>
-    dplyr::select(SR, id, affiliation) -> 
-    m2
-
-m2 |> 
-    tidyr::unnest_wider(affiliation) |>
-    tidyr::unnest_longer(affiliation_country) |>
-    dplyr::select(SR, affiliation_country) |>
-    dplyr::distinct(.keep_all = TRUE) ->
-    m2
-
-documents_topic |>
-    dplyr::select(-gamma) |>
-    dplyr::ungroup() |>
-    dplyr::rename(SR = document) |> 
-    dplyr::left_join(m2) |>
-    dplyr::distinct(.keep_all = TRUE) |>
-    dplyr::filter(!is.na(affiliation_country)) |>
-    dplyr::group_by(topic) |>
-    dplyr::count(affiliation_country, name = 'artigos') |>
-    dplyr::ungroup() |>
-    dplyr::group_by(topic) |>
-    dplyr::arrange(topic, dplyr::desc(artigos)) |>
-    dplyr::slice_head(n = 5) |>
-    dplyr::mutate(pais = paste0(affiliation_country, ' (', artigos, ')')) |>
-    dplyr::summarise(pais = paste(pais, collapse = ', ')) ->
-    topic_country
-
-topic_country |>
-        datatable(
-        extensions = 'Buttons', 
-        rownames = F, 
-        options = list(
-                    dom = 'Bfrtip', 
-                    pageLength = 12, 
-                    buttons = list(list(
-                                        extend = 'collection', 
-                                        buttons = list(list(extend = 'csv', filename = 'data'), 
-                                                        list(extend = 'excel', filename = 'data')), 
-                                                        text = 'Download'))))  
-```
-
-### 25 tópicos
-
-```{r, eval = T, echo = F}
-
-## Modeling 
-
-# modelo sem metadados
-stm(documents = scopus_doc$documents, 
-    vocab = scopus_doc$vocab, 
-    K = 25, 
-    data = scopus_doc$meta,
-    verbose = F) ->
-    scopus_stm_fit
-
-tidytext::tidy(scopus_stm_fit) |>
-    dplyr::arrange(beta) |>
-    dplyr::group_by(topic) |>
-    dplyr::top_n(10, beta) |>
-    dplyr::arrange(-beta) |>
-    dplyr::select(topic, term) |>
-    dplyr::summarise(terms = list(term)) |>
-    dplyr::mutate(terms = purrr::map(terms, paste, collapse = ", ")) |> 
-    tidyr::unnest() ->
-    top_terms 
-
-tidytext::tidy(scopus_stm_fit, matrix = "gamma", document_names = scopus_prep$meta$nome_do_projeto) |>
-    group_by(topic) |>
-    summarise(gamma = mean(gamma)) |>
-    arrange(desc(gamma)) |>
-    left_join(top_terms, by = "topic") |>
-    mutate(topic = paste0("Topic ", topic), topic = reorder(topic, gamma)) ->
-    gamma_terms  
-
-gamma_terms |>
-    dplyr::mutate(topic = tolower(.data$topic)) |>
-    dplyr::mutate(topic = gsub(' ', '_', .data$topic)) |>
-    dplyr::mutate(gamma = round(.data$gamma, digits = 3)) |> 
-    DT::datatable(
-        extensions = 'Buttons', 
-        rownames = F, 
-        options = list(
-                    dom = 'Bfrtip', 
-                    pageLength = 12, 
-                    buttons = list(list(
-                                        extend = 'collection', 
-                                        buttons = list(list(extend = 'csv', filename = 'data'), 
-                                                        list(extend = 'excel', filename = 'data')), 
-                                                        text = 'Download'))))
-```
-
-
-```{r eval = T, echo = F, warning = FALSE, error = TRUE, tidy = FALSE, message = FALSE}
-
-tidytext::tidy(scopus_stm_fit, matrix = "theta", document_names = scopus_prep$meta$SR) |> 
-    dplyr::left_join(scopus |> dplyr::rename(document = SR)) |>
-    dplyr::distinct(.keep_all = TRUE) |> 
-    dplyr::arrange(document, topic) -> 
-    gamma_documents
-
-gamma_documents |>
-    dplyr::group_by(topic) |>
-    dplyr::arrange(dplyr::desc(gamma)) |>
-    dplyr::slice_head(n = 200) |>
-    dplyr::ungroup() ->
-    gamma_documents
-
-gamma_documents |>
-    dplyr::mutate(topic = paste('topic', topic, sep = '_')) |> 
-    dplyr::mutate(gamma = round(.data$gamma, digits = 3)) |> 
-    dplyr::select(document, topic, gamma, PY, TI, AB, DE) -> 
-    tab_top_25
-
-rio::export(tab_top_25, 'rawfiles/stm_scopus_tab_top_25.xlsx') 
-
-tab_top_25 |>
-    dplyr::select(document, topic, gamma, TI, DE, AB) |> 
-    DT::datatable(
-        rownames = FALSE,
-        filter = 'bottom',
-        extensions = 'Buttons', 
-        options = list(
-                    dom = 'Blfrtip', pageLength = 5,
-                        columnDefs = list(list(visible = FALSE, targets = c(4, 5))), 
-                        buttons = list(list(extend = 'colvis', columns = c(0, 1, 2, 3, 4, 5)))
-                        ))
-
-```
-
-[Baixar arquivo do MS Excel.](rawfiles/stm_scopus_tab_top_25.xlsx)
-
-Principal tópico do artigo, considerando o endereço profissional dos autores. Artigos com autores em mais de um país é comtabilizado para ambos os países.
-
-Principal tópico do artigo.
-
-```{r eval = T, echo = F}
-
-# principais artigos por tópicos
-tidytext::tidy(scopus_stm_fit, matrix = "theta", document_names = scopus_prep$meta$SR) |> 
-    dplyr::left_join(scopus |> dplyr::rename(document = SR)) |>
-    dplyr::distinct(.keep_all = TRUE) |> 
-    dplyr::select(document, topic, gamma) |>
-    dplyr::arrange(document, topic, gamma) -> 
-    gamma_documents
-
-gamma_documents |>
-    dplyr::group_by(document) |>
-    dplyr::arrange(dplyr::desc(gamma)) |> 
-    slice_head(n = 1) |>
-    dplyr::ungroup() ->
-    documents_topic
-
-documents_topic |>
-    dplyr::group_by(topic) |>
-    dplyr::count(name = 'artigos') |>
-    dplyr::ungroup() |>
-        datatable(
-        extensions = 'Buttons', 
-        rownames = F, 
-        options = list(
-                    dom = 'Bfrtip', 
-                    pageLength = 25, 
-                    buttons = list(list(
-                                        extend = 'collection', 
-                                        buttons = list(list(extend = 'csv', filename = 'data'), 
-                                                        list(extend = 'excel', filename = 'data')), 
-                                                        text = 'Download'))))  
-
-```
-
-```{r eval = T, echo = F}
-
-# principais artigos por tópicos
-tidytext::tidy(scopus_stm_fit, matrix = "theta", document_names = scopus_prep$meta$SR) |> 
-    dplyr::left_join(scopus |> dplyr::rename(document = SR)) |>
-    dplyr::distinct(.keep_all = TRUE) |> 
-    dplyr::select(document, topic, gamma) |>
-    dplyr::arrange(document, topic, gamma) -> 
-    gamma_documents
-
-gamma_documents |>
-    dplyr::group_by(document) |>
-    dplyr::arrange(dplyr::desc(gamma)) |> 
-    slice_head(n = 1) ->
-    documents_topic
-
-# afiliacao por artigos
-rio::import('rawfiles/m_scopus.rds') -> 
-    M 
-
-rio::import('~/OneDrive/Rworkspace/2021-pirarucu/rawfiles/m_scopus_afilicao.rds') ->
-    afiliacao
-
-# gerar variável id, presente em afiliacao
-M$id <- as.character(1:nrow(M))
-
-# adicionar afiliação no arquivo M, como lista de coluna num tibble()
-afiliacao |> 
-    purrr::map(janitor::clean_names) |>
-    dplyr::bind_rows(.id = 'id') |>
-    dplyr::group_by(id) |>
-    tidyr::nest() |>
-    dplyr::rename(affiliation = data) |>
-    dplyr::ungroup() |>
-    dplyr::right_join(M) |>
-    dplyr::select(SR, id, affiliation) -> 
-    m2
-
-m2 |> 
-    tidyr::unnest_wider(affiliation) |>
-    tidyr::unnest_longer(affiliation_country) |>
-    dplyr::select(SR, affiliation_country) |>
-    dplyr::distinct(.keep_all = TRUE) ->
-    m2
-
-documents_topic |>
-    dplyr::select(-gamma) |>
-    dplyr::ungroup() |>
-    dplyr::rename(SR = document) |> 
-    dplyr::left_join(m2) |>
-    dplyr::distinct(.keep_all = TRUE) |>
-    dplyr::filter(!is.na(affiliation_country)) |>
-    dplyr::group_by(topic) |>
-    dplyr::count(affiliation_country, name = 'artigos') |>
-    dplyr::ungroup() |>
-    dplyr::group_by(topic) |>
-    dplyr::arrange(topic, dplyr::desc(artigos)) |>
-    dplyr::slice_head(n = 5) |>
-    dplyr::mutate(pais = paste0(affiliation_country, ' (', artigos, ')')) |>
-    dplyr::summarise(pais = paste(pais, collapse = ', ')) ->
-    topic_country
-
-topic_country |>
-        datatable(
-        extensions = 'Buttons', 
-        rownames = F, 
-        options = list(
-                    dom = 'Bfrtip', 
-                    pageLength = 25, 
-                    buttons = list(list(
-                                        extend = 'collection', 
-                                        buttons = list(list(extend = 'csv', filename = 'data'), 
-                                                        list(extend = 'excel', filename = 'data')), 
-                                                        text = 'Download'))))  
-```
-
-## STM - Scopus + WoS
-
-Títulos, Abstract e Keywords analisados via Structural Topic Modeling.
-
-```{r, eval = F, echo = F}
-
-rio::import('rawfiles/m_scopus.rds') |> 
-    tibble::as_tibble() |>
-    dplyr::mutate(texto = paste(TI, AB, DE, sep = '. '), DI = tolower(DI)) |>
-    dplyr::select(SR, texto, PY, SO, TI, AB, DE, DI) ->
-    scopus
-
-bibliometrix::convert2df(file = 'bibs/WoS.bib', dbsource = "wos", format = "bibtex") ->
-    wos
-
-wos |>
-    tibble::as_tibble() |>
-    dplyr::select(SR, TI, AB, DE, DI) |>
-    dplyr::mutate(texto = paste(TI, AB, DE, sep = '. '), DI = tolower(DI)) ->
-    wos
-
-dplyr::bind_rows(scopus, wos) |>
-    dplyr::distinct(DI, .keep_all = TRUE) |>
-    dplyr::select(-DI) ->
-    scopus_wos
-
-rio::export(scopus_wos, 'rawfiles/m_scopus_wos.rds') 
-```
-
-
-```{r, eval = T, echo = F}
-
-rio::import('rawfiles/m_scopus_wos.rds') -> scopus_wos
-
-stm::textProcessor(documents = scopus_wos$texto, 
-                   metadata = scopus_wos[, c('SR')], 
-                   lowercase = TRUE,               
-                   removestopwords = TRUE,        
-                   removenumbers = FALSE,        
-                   removepunctuation = TRUE,    
-                   stem = TRUE,                
-                   wordLengths = c(3, Inf),   
-                   sparselevel = 1,          
-                   language = "en",         
-                   verbose = TRUE,         
-                   onlycharacter = TRUE,  
-                   striphtml = FALSE,       
-                   customstopwords = NULL,  
-                   v1 = FALSE) ->
-    scopus_wos_prep
-
-# class(scopus_wos_prep)
-# names(scopus_wos_prep)
-
-stm::prepDocuments(scopus_wos_prep$documents, 
-                   scopus_wos_prep$vocab, 
-                   scopus_wos_prep$meta, 
-                   lower.thresh = 3) ->
-    scopus_wos_doc 
-# names(scopus_wos_doc)
-
-# scopus_wos_prep$documents |> head()
-# scopus_wos_prep$vocab |> head()
-# scopus_wos_prep$meta |> head()
-
-# ------------------------------
-## search K topics
-
-# tictoc::tic()
-# stm::searchK(documents = scopus_wos_doc$documents, 
-#              vocab = scopus_wos_doc$vocab,
-#              K = c(2, 5, 10:15, 20, 25,  30, 40, 50, 60),      
-#              N = 100,                                   
-#              proportion = 0.5,                          
-#              heldout.seed = 1234,                       
-#              M = 10,                                    
-#              cores = 1,                                 
-#              # prevalence = ~ ano_inicio,
-#              max.em.its = 75,
-#              data = scopus_wos_doc$meta,
-#              init.type = "Spectral",
-#              verbose = F) ->
-#     scopus_wos_searchK 
-# tictoc::toc()
-
-# rio::export(scopus_wos_searchK, 'rawfiles/scopus_wos_searchK_mod1.rds')
-
-rio::import('rawfiles/scopus_wos_searchK_mod1.rds') -> 
-    scopus_wos_searchK
-
-data.frame(K = unlist(scopus_wos_searchK$results$K),
-           semcoh = unlist(scopus_wos_searchK$results$semcoh),
-           exclus = unlist(scopus_wos_searchK$results$exclus)) ->
-    res
-
-res$cor <- ifelse(res$K %in% c(13, 20), 'selecionado', 'nao')
-
-ggplot2::ggplot(res, aes(x = semcoh, y = exclus)) +
-    ggplot2::geom_point(shape = 21, size = 3, position = "identity") +
-    ggplot2::geom_line() +
-    ggrepel::geom_text_repel(data = res, aes(label = K), size = 6) +
-    ggplot2::geom_vline(xintercept = res[res$cor == 'selecionado', 'semcoh'], linetype = 'dashed') +
-    ggplot2::labs(x = 'Semantic Coherence', y = 'Exclusivity', title = 'Model 1') +
-    ggplot2::theme_classic() +
-    ggplot2::theme(legend.position = "none") 
-```
-
-2 modelos para serem analisados: 
-
-- 13 tópicos
-- 20 tópicos
-
-
-### 13 tópicos
-
-```{r, eval = T, echo = F}
-
-## Modeling 
-
-# modelo sem metadados
-stm(documents = scopus_wos_doc$documents, 
-    vocab = scopus_wos_doc$vocab, 
-    K = 13, 
-    data = scopus_wos_doc$meta,
-    verbose = F) ->
-    scopus_wos_stm_fit
-
-tidytext::tidy(scopus_wos_stm_fit) |>
-    dplyr::arrange(beta) |>
-    dplyr::group_by(topic) |>
-    dplyr::top_n(10, beta) |>
-    dplyr::arrange(-beta) |>
-    dplyr::select(topic, term) |>
-    dplyr::summarise(terms = list(term)) |>
-    dplyr::mutate(terms = purrr::map(terms, paste, collapse = ", ")) |> 
-    tidyr::unnest() ->
-    top_terms 
-
-tidytext::tidy(scopus_wos_stm_fit, matrix = "gamma", document_names = scopus_wos_prep$meta$nome_do_projeto) |>
-    group_by(topic) |>
-    summarise(gamma = mean(gamma)) |>
-    arrange(desc(gamma)) |>
-    left_join(top_terms, by = "topic") |>
-    mutate(topic = paste0("Topic ", topic), topic = reorder(topic, gamma)) ->
-    gamma_terms  
-
-gamma_terms |>
-    dplyr::mutate(topic = tolower(.data$topic)) |>
-    dplyr::mutate(topic = gsub(' ', '_', .data$topic)) |>
-    dplyr::mutate(gamma = round(.data$gamma, digits = 3)) |> 
-    DT::datatable(
-        extensions = 'Buttons', 
-        rownames = F, 
-        options = list(
-                    dom = 'Bfrtip', 
-                    pageLength = 12, 
-                    buttons = list(list(
-                                        extend = 'collection', 
-                                        buttons = list(list(extend = 'csv', filename = 'data'), 
-                                                        list(extend = 'excel', filename = 'data')), 
-                                                        text = 'Download'))))
-```
-
-
-```{r eval = T, echo = F, warning = FALSE, error = TRUE, tidy = FALSE, message = FALSE}
-
-tidytext::tidy(scopus_wos_stm_fit, matrix = "theta", document_names = scopus_wos_prep$meta$SR) |> 
-    dplyr::left_join(scopus_wos |> dplyr::rename(document = SR)) |>
-    dplyr::distinct(.keep_all = TRUE) |> 
-    dplyr::arrange(document, topic) -> 
-    gamma_documents
-
-gamma_documents |>
-    dplyr::group_by(topic) |>
-    dplyr::arrange(dplyr::desc(gamma)) |>
-    dplyr::slice_head(n = 200) |>
-    dplyr::ungroup() ->
-    gamma_documents
-
-gamma_documents |>
-    dplyr::mutate(topic = paste('topic', topic, sep = '_')) |> 
-    dplyr::mutate(gamma = round(.data$gamma, digits = 3)) |> 
-    dplyr::select(document, topic, gamma, PY, TI, AB, DE) -> 
-    tab_top_13
-
-rio::export(tab_top_13, 'rawfiles/stm_scopus_wos_tab_top_13.xlsx') 
-
-tab_top_13 |>
-    dplyr::select(document, topic, gamma, TI, DE, AB) |> 
-    DT::datatable(
-        rownames = FALSE,
-        filter = 'bottom',
-        extensions = 'Buttons', 
-        options = list(
-                    dom = 'Blfrtip', pageLength = 5,
-                        columnDefs = list(list(visible = FALSE, targets = c(4, 5))), 
-                        buttons = list(list(extend = 'colvis', columns = c(0, 1, 2, 3, 4, 5)))
-                        ))
-
-```
-
-[Baixar arquivo do MS Excel.](rawfiles/stm_scopus_wos_tab_top_13.xlsx)
-
-### 20 tópicos
-
-```{r, eval = T, echo = F}
-
-## Modeling 
-
-# modelo sem metadados
-stm(documents = scopus_wos_doc$documents, 
-    vocab = scopus_wos_doc$vocab, 
-    K = 20, 
-    data = scopus_wos_doc$meta,
-    verbose = F) ->
-    scopus_wos_stm_fit
-
-tidytext::tidy(scopus_wos_stm_fit) |>
-    dplyr::arrange(beta) |>
-    dplyr::group_by(topic) |>
-    dplyr::top_n(10, beta) |>
-    dplyr::arrange(-beta) |>
-    dplyr::select(topic, term) |>
-    dplyr::summarise(terms = list(term)) |>
-    dplyr::mutate(terms = purrr::map(terms, paste, collapse = ", ")) |> 
-    tidyr::unnest() ->
-    top_terms 
-
-tidytext::tidy(scopus_wos_stm_fit, matrix = "gamma", document_names = scopus_wos_prep$meta$nome_do_projeto) |>
-    group_by(topic) |>
-    summarise(gamma = mean(gamma)) |>
-    arrange(desc(gamma)) |>
-    left_join(top_terms, by = "topic") |>
-    mutate(topic = paste0("Topic ", topic), topic = reorder(topic, gamma)) ->
-    gamma_terms  
-
-gamma_terms |>
-    dplyr::mutate(topic = tolower(.data$topic)) |>
-    dplyr::mutate(topic = gsub(' ', '_', .data$topic)) |>
-    dplyr::mutate(gamma = round(.data$gamma, digits = 3)) |> 
-    DT::datatable(
-        extensions = 'Buttons', 
-        rownames = F, 
-        options = list(
-                    dom = 'Bfrtip', 
-                    pageLength = 12, 
-                    buttons = list(list(
-                                        extend = 'collection', 
-                                        buttons = list(list(extend = 'csv', filename = 'data'), 
-                                                        list(extend = 'excel', filename = 'data')), 
-                                                        text = 'Download'))))
-```
-
-
-```{r eval = T, echo = F, warning = FALSE, error = TRUE, tidy = FALSE, message = FALSE}
-
-tidytext::tidy(scopus_wos_stm_fit, matrix = "theta", document_names = scopus_wos_prep$meta$SR) |> 
-    dplyr::left_join(scopus_wos |> dplyr::rename(document = SR)) |>
-    dplyr::distinct(.keep_all = TRUE) |> 
-    dplyr::arrange(document, topic) -> 
-    gamma_documents
-
-gamma_documents |>
-    dplyr::group_by(topic) |>
-    dplyr::arrange(dplyr::desc(gamma)) |>
-    dplyr::slice_head(n = 200) |>
-    dplyr::ungroup() ->
-    gamma_documents
-
-gamma_documents |>
-    dplyr::mutate(topic = paste('topic', topic, sep = '_')) |> 
-    dplyr::mutate(gamma = round(.data$gamma, digits = 3)) |> 
-    dplyr::select(document, topic, gamma, PY, TI, AB, DE) -> 
-    tab_top_20
-
-rio::export(tab_top_20, 'rawfiles/stm_scopus_wos_tab_top_20.xlsx') 
-
-tab_top_20 |>
-    dplyr::select(document, topic, gamma, TI, DE, AB) |> 
-    DT::datatable(
-        rownames = FALSE,
-        filter = 'bottom',
-        extensions = 'Buttons', 
-        options = list(
-                    dom = 'Blfrtip', pageLength = 5,
-                        columnDefs = list(list(visible = FALSE, targets = c(4, 5))), 
-                        buttons = list(list(extend = 'colvis', columns = c(0, 1, 2, 3, 4, 5)))
-                        ))
-
-```
-
-[Baixar arquivo do MS Excel.](rawfiles/stm_scopus_wos_tab_top_20.xlsx)
-
-
-
-<!--
-
-## Web of Science - WoS
-
-
-Query
-
-```
-321 results from Web of Science Core Collection for:
-pirarucu OR  "arapaima gigas" (All fields)
-```
-
-[Endereço da busca](https://www.webofscience.com/wos/woscc/summary/f09f9cb1-aae8-41f2-b9be-393ea77412cd-2d0e49ec/relevance/1)
-
-Busca feita em 2022-03-28.
-
--->
 

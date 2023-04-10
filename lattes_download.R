@@ -280,13 +280,19 @@ projetos5 |>
 projetos6 |>
     dplyr::group_by(nome_completo) |>
     dplyr::summarise(qtde_artigos = sum(qtde_projetos)) |>
-    dplyr::arrange(qtde_artigos, nome_completo) |>
-    dplyr::ungroup() ->
+    dplyr::arrange(- qtde_artigos, nome_completo) |>
+    dplyr::ungroup() |>
+    dplyr::mutate(sigla = paste0('R', 1:15)) -> 
     ordem_autor_projetos
 
-projetos6$nome_completo <- factor(projetos6$nome_completo, levels = ordem_autor_projetos$nome_completo)
+projetos6 |>
+    dplyr::left_join(ordem_autor_projetos) ->
+    projetos6
 
-ggplot2::ggplot(projetos6, aes(x = nome_completo, y = qtde_projetos, fill = Leader, label = qtde_projetos)) +  
+projetos6$nome_completo <- factor(projetos6$nome_completo, levels = ordem_autor_projetos$nome_completo)
+projetos6$sigla <- factor(projetos6$sigla, levels = rev(ordem_autor_projetos$sigla))
+
+ggplot2::ggplot(projetos6, aes(x = sigla, y = qtde_projetos, fill = Leader, label = qtde_projetos)) +  
     ggplot2::geom_bar(stat = "identity") + 
     coord_flip() +
     ggplot2::geom_text(size = 4, position = position_stack(vjust = 0.5)) +
@@ -295,7 +301,7 @@ ggplot2::ggplot(projetos6, aes(x = nome_completo, y = qtde_projetos, fill = Lead
     xlab(NULL) +
     theme(legend.position = "bottom", axis.text.y = element_text(size = 12))
 
-ggsave('images/projetos-autor-lattes-v2.png', width = 18, height = 12, units = c("cm"))
+ggsave('images/projetos-autor-lattes-v2_nao_identificado.png', width = 18, height = 12, units = c("cm"))
 
 
 # --------------------------------------------------
@@ -883,7 +889,44 @@ ggplot() +
 ggsave('images/lattes-projetos-mapa.png', width = 16, height = 16, units = c("cm"))
 
 
+##### população brasileira em 2020 por estado
 
+readr::read_csv('rawfiles/ibge_populacao_estados_2020.csv') |>
+    janitor::clean_names() |> 
+    dplyr::mutate(estado = stringr::str_trim(stringi::stri_trans_general(tolower(estado), "Latin-ASCII"))) |>
+    dplyr::rename(name_state = estado) |> 
+    as.data.frame() ->
+    populacao
+
+populacao |>
+    dplyr::right_join(uf |> dplyr::mutate(name_state = stringr::str_trim(stringi::stri_trans_general(tolower(name_state), "Latin-ASCII")))) ->
+    uf2
+
+uf2$populacao <- uf2$populacao / 1000
+summary(uf2$populacao)
+
+ggplot() +
+    geom_sf(data = uf2, aes(fill = populacao, geometry = geom), color = "Black", size = .15) +
+    geom_sf_label(data = uf2, aes(label = abbrev_state, , geometry = geom), label.padding = unit(1, "mm")) +
+    scale_fill_distiller(limits = c(450, 45000), name = "Population", palette = 2, direction = 1) + 
+    theme(legend.position = c(.25, .3), 
+          axis.title.x = element_blank(),  
+          axis.text.x = element_blank(), 
+          axis.ticks.x = element_blank(), 
+          axis.title.y = element_blank(),  
+          axis.text.y = element_blank(), 
+          axis.ticks.y = element_blank(),
+          legend.key = element_rect(colour = "white"),
+          panel.background = element_blank(),
+          panel.border = element_blank(),
+          panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank(),
+          panel.margin = unit(0, "lines"),
+          plot.background = element_blank(),
+          plot.margin = unit(c(0, 0, 0, 0), "cm")
+    ) 
+
+ggsave('images/ibge_populacao_estados_2020_mapa.png', width = 16, height = 16, units = c("cm"))
 
 # --------------------------------------------------
 # google citations

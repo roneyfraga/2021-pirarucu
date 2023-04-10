@@ -153,20 +153,37 @@ mtcars %>% select(!all_of(vars))
 ### análise dos artigos
 # ------------------------------
 
-scopus <- convert2df(file = 'bibs/scopus.bib', dbsource = "scopus", format = "bibtex") 
+convert2df(file = 'bibs/scopus_2022-11-12.bib', dbsource = "scopus", format = "bibtex") |>
+  tibble::as_tibble() |>
+  dplyr::mutate(TI = stringr::str_trim(stringi::stri_trans_general(tolower(TI), "Latin-ASCII"))) |>
+  dplyr::select(SR, TI) ->
+  scopus
 
-wos <- convert2df(file = 'bibs/WoS.bib', dbsource = "wos", format = "bibtex") 
+convert2df(file = 'bibs/WoS.bib', dbsource = "wos", format = "bibtex") |> 
+  tibble::as_tibble() |>
+  dplyr::mutate(TI = stringr::str_trim(stringi::stri_trans_general(tolower(TI), "Latin-ASCII"))) |>
+  dplyr::select(SR, TI) ->
+  wos
 
-scopus |> names()
-wos |> names()
+rio::import('bibs/scielo_2022-11-12.csv') |> 
+  janitor::clean_names() |> 
+  tibble::as_tibble() |>
+  dplyr::rename(TI = title) |> 
+  dplyr::mutate(TI = stringr::str_trim(stringi::stri_trans_general(tolower(TI), "Latin-ASCII"))) |>
+  dplyr::select(author_s, TI) ->
+  scielo
 
-scopus |> dplyr::select(DI) |> slice_head(n = 10)
-wos |> dplyr::select(DI) |> slice_head(n = 10)
 
-a <- scopus$DI |> tolower()
-b <- wos$DI |> tolower()
+buscar <- 'Anatomical Behavior of the Celiacomesenteric Artery of Pirarucu'
+buscar <- stringr::str_trim(stringi::stri_trans_general(tolower(buscar), "Latin-ASCII"))
+dplyr::filter(scopus, grepl(buscar, ignore.case = T, TI)) 
 
-a[!(a %in% b)] |> length()
+# artigos não encontrados
 
+# Identificación de parásitos en paiches "Arapaima gigas" juveniles
+# http://dx.doi.org/10.17268/sci.agropecu.2017.04.02  
+
+# Effect of pond fertilization on growth performance of pirarucu (Arapaima gigas) during grow-out phase
+# http://dx.doi.org/10.3856/vol50-issue1-fulltext-2617  
 
 

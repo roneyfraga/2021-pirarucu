@@ -1,41 +1,22 @@
 
-# Lattes Geral {#lattes}
+# Lattes {#lattes}
 
-Argumento que apenas parte da ciência esta contida no Scopus ou Web of Science, como destacado por:
+## General
 
-* @beigel2014
-* @beigel2018
-* @mugnaini2019
-
-Beigel apresenta 4 circuitos de divulgação científica, nosso trabalho pode estar em:
-
-* (c) regional Southern circuits; e ou 
-* (d) national circuits based on local publications
-
-@mugnaini2019 apresenta quando do Lattes esta indexado no WoS ou Scopus. Importante argumento para ajudar a vender a ideia de utilizar o Lattes.
-
-@rodrigues2015 indicam que apenas 314 periódicos científicos brasileiros estavam indexados nas bases Scopus ou WoS em 2015.
-
-@nascimento2021 analisou a taxa de crescimento das ciência brasileira.
-
-@Albanna2021 Publication outperformance among global South researchers.
-
-## Grandes números
-
-| Documento                | Quantidade |
+| Documents                | Quantity |
 |--------------------------|------------|
-| artigos                  | 497        |
-| livros                   | 35         |
-| capítulos de livros      | 87         |
-| projetos                 | 568        |
-| monografias              | 165        |
-| dissertações de mestrado | 115        |
-| teses de doutorado       | 62         |
+| articles                 | 497        |
+| books                    | 35         |
+| book chapters            | 87         |
+| projects                 | 568        |
+| monographs               | 165        |
+| master's dissertations   | 115        |
+| doctoral theses          | 62         |
 
 
-## Artigos do Lattes por Estado
+## Lattes Articles by Brazilian State
 
-Artigos com dois ou mais autores do mesmo estados foram normalizados, apenas um autor conta para cada estado.
+Articles with two or more authors from the same state have been normalized, only one author counts for each state.
 
 ```{r eval = T, echo = F}
 
@@ -67,7 +48,7 @@ artigos |>
 
 ```
 
-Lista de artigos. 
+Papers List. 
 
 ```{r eval = T, echo = F}
 
@@ -89,7 +70,7 @@ artigos |>
 
 ``` 
 
-## Livros do Lattes 
+## Books on Lattes 
 
 ```{r eval = T, echo = F}
 
@@ -121,8 +102,7 @@ livros |>
 
 ```
 
-Lista de livros.
-
+Books list.
 
 ```{r eval = T, echo = F}
 
@@ -144,7 +124,7 @@ livros |>
 
 ``` 
 
-## Capítulos de Livros do Lattes 
+## Books Chapters on Lattes 
 
 ```{r eval = T, echo = F}
 
@@ -173,7 +153,7 @@ capitulos_livros |>
 
 ```
 
-List de capítulos de livros.
+Books Chapters list.
 
 ```{r eval = T, echo = F}
 
@@ -196,7 +176,7 @@ capitulos_livros |>
 ``` 
 
 
-## Projetos do Lattes 
+## Projects on Lattes 
 
 ```{r eval = T, echo = F}
 
@@ -225,7 +205,7 @@ projetos |>
 
 ```
 
-Lista de projetos. 
+Projects list.
 
 ```{r eval = T, echo = F}
 
@@ -247,9 +227,7 @@ projetos |>
 
 ``` 
 
-## Monografias do Lattes 
-
-Nome do curso.
+## Undergraduate Monographs on Lattes 
 
 ```{r eval = T, echo = F}
 
@@ -273,7 +251,7 @@ monografias |>
 
 ```
 
-Universidade.
+University.
 
 ```{r eval = T, echo = F}
 
@@ -293,7 +271,7 @@ monografias |>
 
 ```
 
-Estado.
+State.
 
 
 ```{r eval = T, echo = F}
@@ -333,9 +311,7 @@ rio::import('rawfiles/monografia_nouf_v2.xlsx') |>
 ```
 
 
-## Dissertações do Lattes 
-
-Nome do curso.
+## Master's Dissertations on Lattes 
 
 ```{r eval = T, echo = F}
 
@@ -359,7 +335,7 @@ mestrado |>
 
 ```
 
-Universidade.
+University.
 
 ```{r eval = T, echo = F}
 
@@ -379,8 +355,7 @@ mestrado |>
 
 ```
 
-Estado.
-
+State.
 
 ```{r eval = T, echo = F}
 
@@ -418,7 +393,7 @@ rio::import('rawfiles/mestrado_nouf_v2.xlsx') |>
 
 ```
 
-## Teses do Lattes 
+## Doctoral Theses on Lattes 
 
 ```{r eval = T, echo = F}
 
@@ -442,7 +417,7 @@ doutorado |>
 
 ```
 
-Universidade.
+University.
 
 ```{r eval = T, echo = F}
 
@@ -462,7 +437,7 @@ doutorado |>
 
 ```
 
-Estado.
+State.
 
 ```{r eval = T, echo = F}
 
@@ -500,7 +475,7 @@ rio::import('rawfiles/doutorado_nouf_v2.xlsx') |>
 
 ```
 
-## Artigos - rede colaboração entre estados 
+## Articles - collaboration network among states 
 
 ```{r eval = T, echo = F}
 
@@ -513,7 +488,6 @@ artigos |>
     dplyr::ungroup() ->
     artigos3
 
-# add primary key by article: que se repete quando o artigo tem mais de 1 autor
 artigos3 |> 
     dplyr::group_by(titulo_do_artigo) |> 
     dplyr::group_indices(titulo_do_artigo) ->  
@@ -523,12 +497,6 @@ artigos3 |>
     dplyr::arrange(pmk) -> 
     artigos3
 
-# artigos3 |>
-#     dplyr::mutate(PY = as.numeric(ano_do_artigo)) |>
-#     dplyr::count(PY, sort = F) |>
-#     print(n = Inf)
-
-# gerando edges
 artigos3 |> dplyr::select(pmk, uf2) |>  dplyr::arrange(pmk) -> temp
 temp2 <- split(temp, f = temp$pmk)
 temp2 <- lapply(temp2, function(x) {as.character(x$uf2)})
@@ -541,7 +509,6 @@ temp2 %>>%
     (dplyr::arrange(., - weight)) %>>%
     (tibble::as_tibble(.) -> ide)
 
-# gerando vertices
 idv <- unlist(idv) 
 idv2 <- idv[!duplicated(idv)]
 names(idv2) <- NULL
@@ -578,7 +545,6 @@ net %>>%
     dplyr::mutate(regiao_id = ifelse(is.na(regiao_id), 6, regiao_id)) ->
     net
 
-# exportar para o vosviewer 
 write_graph(net, file = 'networks/netocuf.net', format = c("pajek"))
 writePajek(V(net)$qtde_artigos, 'networks/netocuf_qtde.vec')
 writePajek(V(net)$regiao_id, 'networks/netocuf_regiao.clu')
@@ -586,13 +552,13 @@ writePajek(V(net)$regiao_id, 'networks/netocuf_regiao.clu')
 
 VosViewer - Fractionalization - Attraction 6 Repulsion 1
 
-Cores dos nós por região do Brasil, ou país estrangeiro. Tamanho do nó por quantidade de artigos por região. 
+Colors of the nodes per region of Brazil, or foreign country. Size of the node per quantity of articles per region. 
 
 ![](networks/netocuf.png)
 [png file](networks/netocuf.png)
 
 
-## Artigos - rede colaboração entre autores
+## Articles - author collaboration network
 
 ```{r eval = T, echo = F}
 
@@ -605,7 +571,6 @@ artigos |>
     dplyr::ungroup() ->
     artigos3
 
-# add primary key by article: que se repete quando o artigo tem mais de 1 autor
 artigos3 |> 
     dplyr::group_by(titulo_do_artigo) |> 
     dplyr::group_indices(titulo_do_artigo) ->  
@@ -615,7 +580,6 @@ artigos3 |>
     dplyr::arrange(pmk) -> 
     artigos3
 
-# gerando edges
 artigos3 |> dplyr::select(pmk, id) |>  dplyr::arrange(pmk) -> temp
 temp2 <- split(temp, f = temp$pmk)
 temp2 <- lapply(temp2, function(x) {as.character(x$id)})
@@ -628,7 +592,6 @@ temp2 %>>%
     (arrange(., - weight)) %>>%
     (as_tibble(.) -> ide)
 
-# gerando vertices
 idv <- unlist(idv) 
 idv2 <- idv[!duplicated(idv)]
 names(idv2) <- NULL
@@ -641,7 +604,6 @@ artigos3 %>>%
 graph.data.frame(ide, directed = FALSE, vertices = idv2) %>>%
     (as_tbl_graph(.) -> net)
 
-# nome curto
 rio::import('rawfiles/dados_gerais.rds') |> 
     dplyr::select(name = id, citar_como = nome_em_citacoes_bibliograficas, nome_completo) |>
     dplyr::mutate(citar_como = gsub(';.*$', '', citar_como)) ->
@@ -670,7 +632,6 @@ net |>
     dplyr::filter(qtde_artigos > 3) ->
     net
 
-# exportar para o vosviewer 
 # write_graph(net, file = 'networks/netcolaut.net', format = c("pajek")) # sobrenomes normalizados na mão
 writePajek(V(net)$qtde_artigos, 'networks/netcolaut_qtde.vec')
 writePajek(V(net)$regiao_id, 'networks/netcolaut_regiao.clu')
@@ -678,12 +639,10 @@ writePajek(V(net)$regiao_id, 'networks/netcolaut_regiao.clu')
 
 VosViewer - Association Strength - Attraction 6 Repulsion 0
 
-Autores com 5 ou mais artigos.
-
 ![](networks/netcolaut.png)
 [png file](networks/netcolaut.png)
 
-Cores das regiões
+Colors of the regions:
 
 ![](networks/cores_grupos_regioes.png)
 [png file](networks/cores_grupos_regioes.png)
@@ -695,11 +654,11 @@ Cores das regiões
 * Cluster 5 = Centro-Oeste
 * Cluster 6 = Exterior
 
-## Pricipais autores do Lattes
+## Main authors of Lattes
 
-Os endereços foram obtivos via cadastro do endereço profissional do Lattes, ou do local da tese, mestrado e monografia, seguindo esta ordem.
+The addresses were obtained via the Lattes professional address register, or from the location of the thesis, master's degree and monograph, following this order.
 
-É útil conferir os endereços dos principais autores.
+It is useful to check the addresses of the main authors.
 
 ```{r eval = T, echo = F}
 

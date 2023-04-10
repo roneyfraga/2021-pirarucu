@@ -1,7 +1,5 @@
 
-# Lattes Projetos
-
-Tipos de projetos.
+# Lattes Projects
 
 ```{r, eval = T, echo = F}
 
@@ -9,7 +7,7 @@ rio::import('rawfiles/projetos.rds') |>
     tibble::tibble() ->
     projetos
 
-rio::export(projetos, 'rawfiles/projetos.xlsx')
+# rio::export(projetos, 'rawfiles/projetos.xlsx')
 
 projetos |>
     dplyr::group_by(natureza, situacao) |>
@@ -26,8 +24,6 @@ projetos |>
                                                         list(extend = 'excel', filename = 'data')), 
                                                         text = 'Download'))))
 ```
-
-[Excel dos Projetos.](rawfiles/projetos.xlsx)
 
 ```{r, eval = T, echo = F}
 
@@ -57,7 +53,7 @@ pesq |>
 
 ```
 
-Financiadores dos projetos.
+Project funders.
 
 ```{r, eval = T, echo = F}
 
@@ -74,16 +70,7 @@ projetos |>
 
 ```
 
-## Tópicos - Modelo 1
-
-Incluir título do projeto e descrição dos projetos para serem analisados via Structural Topic Modeling.
-
-Após retirar os projetos duplicados, quando dois ou mais pesquisadores lançam o mesmo projeto no currículo Lattes, temos:
-
-* 470 projetos de pesquisa
-* 125 projetos sem descrição, nestes utilizamos apenas os títulos para minerar o texto 
-
-### Topic Modeling 
+## Structural Topic Modeling 
 
 ```{r, eval = T, echo = F}
 
@@ -161,110 +148,14 @@ ggplot2::ggplot(res, aes(x = semcoh, y = exclus)) +
 
 ```
 
-@kuhn2018 também escolheu a quantidade de tópicos utilizando o mesmo tipo de gráfico.
+@kuhn2018 also chose the amount of topics using the same type of graph.
 
-3 modelos para serem analisados: 
-
-- 10 tópicos
-- 14 tópicos
-- 25 tópicos
-
-### 10 tópicos
+**15 topics**
 
 ```{r, eval = T, echo = F}
 # ------------------------------
 ## Modeling 
 
-# modelo sem metadados
-stm(documents = pesq_doc$documents, 
-    vocab = pesq_doc$vocab, 
-    K = 10, 
-    data = pesq_doc$meta,
-    verbose = F) ->
-    pesq_stm_fit
-
-tidytext::tidy(pesq_stm_fit) |>
-    dplyr::arrange(beta) |>
-    dplyr::group_by(topic) |>
-    dplyr::top_n(10, beta) |>
-    dplyr::arrange(-beta) |>
-    dplyr::select(topic, term) |>
-    dplyr::summarise(terms = list(term)) |>
-    dplyr::mutate(terms = purrr::map(terms, paste, collapse = ", ")) |> 
-    tidyr::unnest() ->
-    top_terms 
-
-tidytext::tidy(pesq_stm_fit, matrix = "gamma", document_names = pesq_prep$meta$nome_do_projeto) |>
-    group_by(topic) |>
-    summarise(gamma = mean(gamma)) |>
-    arrange(desc(gamma)) |>
-    left_join(top_terms, by = "topic") |>
-    mutate(topic = paste0("Topic ", topic), topic = reorder(topic, gamma)) ->
-    gamma_terms  
-
-gamma_terms |>
-    dplyr::mutate(topic = tolower(.data$topic)) |>
-    dplyr::mutate(topic = gsub(' ', '_', .data$topic)) |>
-    dplyr::mutate(gamma = round(.data$gamma, digits = 3)) |> 
-    DT::datatable(
-        extensions = 'Buttons', 
-        rownames = F, 
-        options = list(
-                    dom = 'Bfrtip', 
-                    pageLength = 12, 
-                    buttons = list(list(
-                                        extend = 'collection', 
-                                        buttons = list(list(extend = 'csv', filename = 'data'), 
-                                                        list(extend = 'excel', filename = 'data')), 
-                                                        text = 'Download'))))
-```
-
-
-```{r eval = T, echo = F, warning = FALSE, error = TRUE, tidy = FALSE, message = FALSE}
-
-tidytext::tidy(pesq_stm_fit, matrix = "theta", document_names = pesq_prep$meta$nome_do_projeto) |> 
-    dplyr::left_join(pesq |> dplyr::rename(document = nome_do_projeto)) |>
-    dplyr::distinct(.keep_all = TRUE) |> 
-    dplyr::arrange(document, topic) -> 
-    gamma_documents
-
-gamma_documents |>
-    dplyr::group_by(topic) |>
-    dplyr::arrange(dplyr::desc(gamma)) |>
-    dplyr::slice_head(n = 200) |>
-    dplyr::ungroup() ->
-    gamma_documents
-
-gamma_documents |>
-    dplyr::mutate(topic = paste('topic', topic, sep = '_')) |> 
-    dplyr::mutate(gamma = round(.data$gamma, digits = 3)) |> 
-    dplyr::select(document, topic, gamma, ano_inicio, descricao_do_projeto) -> 
-    tab_top_10
-
-rio::export(tab_top_10, 'rawfiles/stm_tab_top_10.xlsx') 
-
-tab_top_10 |>
-    DT::datatable(
-        rownames = FALSE,
-        filter = 'bottom',
-        extensions = 'Buttons', 
-        options = list(
-                    dom = 'Blfrtip', pageLength = 5,
-                        columnDefs = list(list(visible = FALSE, targets = c(4))), 
-                        buttons = list(list(extend = 'colvis', columns = c(0, 1, 2, 4)))
-                        ))
-
-```
-
-[Baixar arquivo do MS Excel.](rawfiles/stm_tab_top_10.xlsx)
-
-### 15 tópicos
-
-```{r, eval = T, echo = F}
-# ------------------------------
-## Modeling 
-
-# modelo sem metadados
 stm(documents = pesq_doc$documents, 
     vocab = pesq_doc$vocab, 
     K = 15, 
@@ -283,29 +174,43 @@ tidytext::tidy(pesq_stm_fit) |>
     tidyr::unnest() ->
     top_terms 
 
-tidytext::tidy(pesq_stm_fit, matrix = "gamma", document_names = pesq_prep$meta$nome_do_projeto) |>
-    group_by(topic) |>
-    summarise(gamma = mean(gamma)) |>
-    arrange(desc(gamma)) |>
-    left_join(top_terms, by = "topic") |>
-    mutate(topic = paste0("Topic ", topic), topic = reorder(topic, gamma)) ->
-    gamma_terms  
+n_documents <- dim(pesq_stm_fit$theta)[1]
 
-gamma_terms |>
-    dplyr::mutate(topic = tolower(.data$topic)) |>
-    dplyr::mutate(topic = gsub(' ', '_', .data$topic)) |>
-    dplyr::mutate(gamma = round(.data$gamma, digits = 3)) |> 
-    DT::datatable(
-        extensions = 'Buttons', 
-        rownames = F, 
-        options = list(
-                    dom = 'Bfrtip', 
-                    pageLength = 15, 
-                    buttons = list(list(
-                                        extend = 'collection', 
-                                        buttons = list(list(extend = 'csv', filename = 'data'), 
-                                                        list(extend = 'excel', filename = 'data')), 
-                                                        text = 'Download'))))
+tidytext::tidy(pesq_stm_fit, matrix = "gamma") |>
+  dplyr::group_by(document) |>
+  dplyr::arrange(dplyr::desc(gamma)) |>
+  dplyr::slice_head(n = 1) |>
+  dplyr::ungroup() |>
+  dplyr::group_by(topic) |>
+  dplyr::summarise(topic_proportion = n() / n_documents) ->
+  topic_proportion
+
+topic_proportion |>
+  left_join(top_terms, by = "topic") |>
+  mutate(topic = paste0("Topic ", topic)) |>
+  dplyr::arrange(dplyr::desc(topic_proportion)) ->
+  topic_proportion2
+
+topic_proportion2 |>
+  dplyr::mutate(topic = tolower(.data$topic)) |>
+  dplyr::mutate(topic = gsub(' ', '_', .data$topic)) |>
+  dplyr::mutate(topic_proportion = round(.data$topic_proportion, digits = 3)) -> 
+  topic_proportion3
+
+rio::export(topic_proportion3, '~/Sync/pirarucu/topic_proportion.xlsx') 
+
+topic_proportion3 |>
+  DT::datatable(
+      extensions = 'Buttons', 
+      rownames = F, 
+      options = list(
+                  dom = 'Bfrtip', 
+                  pageLength = 15, 
+                  buttons = list(list(
+                                      extend = 'collection', 
+                                      buttons = list(list(extend = 'csv', filename = 'data'), 
+                                                      list(extend = 'excel', filename = 'data')), 
+                                                      text = 'Download'))))
 ```
 
 
@@ -345,555 +250,4 @@ tab_top_15 |>
 
 ```
 
-[Baixar arquivo do MS Excel.](rawfiles/stm_tab_top_15.xlsx)
-
-
-### 25 tópicos
-
-```{r, eval = T, echo = F}
-# ------------------------------
-## Modeling 
-
-# modelo sem metadados
-stm(documents = pesq_doc$documents, 
-    vocab = pesq_doc$vocab, 
-    K = 25, 
-    data = pesq_doc$meta,
-    verbose = F) ->
-    pesq_stm_fit
-
-tidytext::tidy(pesq_stm_fit) |>
-    dplyr::arrange(beta) |>
-    dplyr::group_by(topic) |>
-    dplyr::top_n(10, beta) |>
-    dplyr::arrange(-beta) |>
-    dplyr::select(topic, term) |>
-    dplyr::summarise(terms = list(term)) |>
-    dplyr::mutate(terms = purrr::map(terms, paste, collapse = ", ")) |> 
-    tidyr::unnest() ->
-    top_terms 
-
-tidytext::tidy(pesq_stm_fit, matrix = "gamma", document_names = pesq_prep$meta$nome_do_projeto) |>
-    group_by(topic) |>
-    summarise(gamma = mean(gamma)) |>
-    arrange(desc(gamma)) |>
-    left_join(top_terms, by = "topic") |>
-    mutate(topic = paste0("Topic ", topic), topic = reorder(topic, gamma)) ->
-    gamma_terms  
-
-gamma_terms |>
-    dplyr::mutate(topic = tolower(.data$topic)) |>
-    dplyr::mutate(topic = gsub(' ', '_', .data$topic)) |>
-    dplyr::mutate(gamma = round(.data$gamma, digits = 3)) |> 
-    DT::datatable(
-        extensions = 'Buttons', 
-        rownames = F, 
-        options = list(
-                    dom = 'Bfrtip', 
-                    pageLength = 25, 
-                    buttons = list(list(
-                                        extend = 'collection', 
-                                        buttons = list(list(extend = 'csv', filename = 'data'), 
-                                                        list(extend = 'excel', filename = 'data')), 
-                                                        text = 'Download'))))
-```
-
-
-```{r eval = T, echo = F, warning = FALSE, error = TRUE, tidy = FALSE, message = FALSE}
-
-tidytext::tidy(pesq_stm_fit, matrix = "theta", document_names = pesq_prep$meta$nome_do_projeto) |> 
-    dplyr::left_join(pesq |> dplyr::rename(document = nome_do_projeto)) |>
-    dplyr::distinct(.keep_all = TRUE) |> 
-    dplyr::arrange(document, topic) -> 
-    gamma_documents
-
-gamma_documents |>
-    dplyr::group_by(topic) |>
-    dplyr::arrange(dplyr::desc(gamma)) |>
-    dplyr::slice_head(n = 200) |>
-    dplyr::ungroup() ->
-    gamma_documents
-
-gamma_documents |>
-    dplyr::mutate(topic = paste('topic', topic, sep = '_')) |> 
-    dplyr::mutate(gamma = round(.data$gamma, digits = 3)) |> 
-    dplyr::select(document, topic, gamma, ano_inicio, descricao_do_projeto) -> 
-    tab_top_25
-
-rio::export(tab_top_25, 'rawfiles/stm_tab_top_25.xlsx') 
-
-tab_top_25 |>
-    DT::datatable(
-        rownames = FALSE,
-        filter = 'bottom',
-        extensions = 'Buttons', 
-        options = list(
-                    dom = 'Blfrtip', pageLength = 5,
-                        columnDefs = list(list(visible = FALSE, targets = c(4))), 
-                        buttons = list(list(extend = 'colvis', columns = c(0, 1, 2, 4)))
-                        ))
-
-```
-
-[Baixar arquivo do MS Excel.](rawfiles/stm_tab_top_25.xlsx)
-
-## Tópicos - Modelo 2
-
-Apenas a descrição do projeto foi utilizada.
-
-```{r, eval = T, echo = F}
-
-projetos |>
-    dplyr::filter(natureza == 'PESQUISA') ->
-    pesq
-
-pesq |>
-    dplyr::mutate(texto = paste(descricao_do_projeto, sep = '. ')) |>
-    dplyr::mutate(title = textcleaner(nome_do_projeto)) |> 
-    dplyr::distinct(title, .keep_all = TRUE) ->
-    pesq
-```
-
-### Topic Modeling 
-
-```{r, eval = T, echo = F}
-
-stm::textProcessor(documents = pesq$texto, 
-                   metadata = pesq[, c('nome_do_projeto', 'descricao_do_projeto', 'ano_inicio', 'ano_fim')], 
-                   lowercase = TRUE,               
-                   removestopwords = TRUE,        
-                   removenumbers = FALSE,        
-                   removepunctuation = TRUE,    
-                   stem = TRUE,                
-                   wordLengths = c(3, Inf),   
-                   sparselevel = 1,          
-                   language = "pt",         
-                   verbose = TRUE,         
-                   onlycharacter = TRUE,  
-                   striphtml = FALSE,       
-                   customstopwords = NULL,  
-                   v1 = FALSE) ->
-    pesq_prep
-
-# class(pesq_prep)
-# names(pesq_prep)
-
-stm::prepDocuments(pesq_prep$documents, 
-                   pesq_prep$vocab, 
-                   pesq_prep$meta, 
-                   lower.thresh = 3) ->
-    pesq_doc 
-# names(pesq_doc)
-
-# pesq_prep$documents |> head()
-# pesq_prep$vocab |> head()
-# pesq_prep$meta |> head()
-
-# ------------------------------
-## search K topics
-
-# tictoc::tic()
-# stm::searchK(documents = pesq_doc$documents, 
-#              vocab = pesq_doc$vocab,
-#              K = c(2, 5, 10:15, 20, 25,  30, 40, 50, 60),      
-#              N = 100,                                   
-#              proportion = 0.5,                          
-#              heldout.seed = 1234,                       
-#              M = 10,                                    
-#              cores = 1,                                 
-#              # prevalence = ~ ano_inicio,
-#              max.em.its = 75,
-#              data = pesq_doc$meta,
-#              init.type = "Spectral",
-#              verbose = F) ->
-#     pesq_searchK 
-# tictoc::toc()
-#
-# rio::export(pesq_searchK, 'rawfiles/pesq_searchK_mod2.rds')
-
-rio::import('rawfiles/pesq_searchK_mod2.rds') -> 
-    pesq_searchK
-
-data.frame(K = unlist(pesq_searchK$results$K),
-           semcoh = unlist(pesq_searchK$results$semcoh),
-           exclus = unlist(pesq_searchK$results$exclus)) ->
-    res
-
-res$cor <- ifelse(res$K %in% c(10, 11, 13, 25), 'selecionado', 'nao')
-
-ggplot2::ggplot(res, aes(x = semcoh, y = exclus)) +
-    ggplot2::geom_point(shape = 21, size = 3, position = "identity") +
-    ggplot2::geom_line() +
-    ggrepel::geom_text_repel(data = res, aes(label = K), size = 6) +
-    ggplot2::geom_vline(xintercept = res[res$cor == 'selecionado', 'semcoh'], linetype = 'dashed') +
-    ggplot2::labs(x = 'Semantic Coherence', y = 'Exclusivity', title = 'Model 2') +
-    ggplot2::theme_classic() +
-    ggplot2::theme(legend.position = "none") 
-
-```
-
-4 modelos para serem analisados: 
-
-- 10 tópicos
-- 11 tópicos
-- 13 tópicos
-- 25 tópicos
-
-
-### 10 tópicos
-
-```{r, eval = T, echo = F}
-# ------------------------------
-## Modeling 
-
-# modelo sem metadados
-stm(documents = pesq_doc$documents, 
-    vocab = pesq_doc$vocab, 
-    K = 10, 
-    data = pesq_doc$meta,
-    verbose = F) ->
-    pesq_stm_fit
-
-tidytext::tidy(pesq_stm_fit) |>
-    dplyr::arrange(beta) |>
-    dplyr::group_by(topic) |>
-    dplyr::top_n(10, beta) |>
-    dplyr::arrange(-beta) |>
-    dplyr::select(topic, term) |>
-    dplyr::summarise(terms = list(term)) |>
-    dplyr::mutate(terms = purrr::map(terms, paste, collapse = ", ")) |> 
-    tidyr::unnest() ->
-    top_terms 
-
-tidytext::tidy(pesq_stm_fit, matrix = "gamma", document_names = pesq_prep$meta$nome_do_projeto) |>
-    group_by(topic) |>
-    summarise(gamma = mean(gamma)) |>
-    arrange(desc(gamma)) |>
-    left_join(top_terms, by = "topic") |>
-    mutate(topic = paste0("Topic ", topic), topic = reorder(topic, gamma)) ->
-    gamma_terms  
-
-gamma_terms |>
-    dplyr::mutate(topic = tolower(.data$topic)) |>
-    dplyr::mutate(topic = gsub(' ', '_', .data$topic)) |>
-    dplyr::mutate(gamma = round(.data$gamma, digits = 3)) |> 
-    DT::datatable(
-        extensions = 'Buttons', 
-        rownames = F, 
-        options = list(
-                    dom = 'Bfrtip', 
-                    pageLength = 25, 
-                    buttons = list(list(
-                                        extend = 'collection', 
-                                        buttons = list(list(extend = 'csv', filename = 'data'), 
-                                                        list(extend = 'excel', filename = 'data')), 
-                                                        text = 'Download'))))
-```
-
-
-```{r eval = T, echo = F, warning = FALSE, error = TRUE, tidy = FALSE, message = FALSE}
-
-tidytext::tidy(pesq_stm_fit, matrix = "theta", document_names = pesq_prep$meta$nome_do_projeto) |> 
-    dplyr::left_join(pesq |> dplyr::rename(document = nome_do_projeto)) |>
-    dplyr::distinct(.keep_all = TRUE) |> 
-    dplyr::arrange(document, topic) -> 
-    gamma_documents
-
-gamma_documents |>
-    dplyr::group_by(topic) |>
-    dplyr::arrange(dplyr::desc(gamma)) |>
-    dplyr::slice_head(n = 200) |>
-    dplyr::ungroup() ->
-    gamma_documents
-
-gamma_documents |>
-    dplyr::mutate(topic = paste('topic', topic, sep = '_')) |> 
-    dplyr::mutate(gamma = round(.data$gamma, digits = 3)) |> 
-    dplyr::select(document, topic, gamma, ano_inicio, descricao_do_projeto) -> 
-    tab_top_10
-
-rio::export(tab_top_10, 'rawfiles/stm2_tab_top_10.xlsx') 
-
-tab_top_10 |>
-    DT::datatable(
-        rownames = FALSE,
-        filter = 'bottom',
-        extensions = 'Buttons', 
-        options = list(
-                    dom = 'Blfrtip', pageLength = 5,
-                        columnDefs = list(list(visible = FALSE, targets = c(4))), 
-                        buttons = list(list(extend = 'colvis', columns = c(0, 1, 2, 4)))
-                        ))
-
-```
-
-[Baixar arquivo do MS Excel.](rawfiles/stm2_tab_top_10.xlsx)
-
-
-### 11 tópicos
-
-```{r, eval = T, echo = F}
-# ------------------------------
-## Modeling 
-
-# modelo sem metadados
-stm(documents = pesq_doc$documents, 
-    vocab = pesq_doc$vocab, 
-    K = 11, 
-    data = pesq_doc$meta,
-    verbose = F) ->
-    pesq_stm_fit
-
-tidytext::tidy(pesq_stm_fit) |>
-    dplyr::arrange(beta) |>
-    dplyr::group_by(topic) |>
-    dplyr::top_n(10, beta) |>
-    dplyr::arrange(-beta) |>
-    dplyr::select(topic, term) |>
-    dplyr::summarise(terms = list(term)) |>
-    dplyr::mutate(terms = purrr::map(terms, paste, collapse = ", ")) |> 
-    tidyr::unnest() ->
-    top_terms 
-
-tidytext::tidy(pesq_stm_fit, matrix = "gamma", document_names = pesq_prep$meta$nome_do_projeto) |>
-    group_by(topic) |>
-    summarise(gamma = mean(gamma)) |>
-    arrange(desc(gamma)) |>
-    left_join(top_terms, by = "topic") |>
-    mutate(topic = paste0("Topic ", topic), topic = reorder(topic, gamma)) ->
-    gamma_terms  
-
-gamma_terms |>
-    dplyr::mutate(topic = tolower(.data$topic)) |>
-    dplyr::mutate(topic = gsub(' ', '_', .data$topic)) |>
-    dplyr::mutate(gamma = round(.data$gamma, digits = 3)) |> 
-    DT::datatable(
-        extensions = 'Buttons', 
-        rownames = F, 
-        options = list(
-                    dom = 'Bfrtip', 
-                    pageLength = 25, 
-                    buttons = list(list(
-                                        extend = 'collection', 
-                                        buttons = list(list(extend = 'csv', filename = 'data'), 
-                                                        list(extend = 'excel', filename = 'data')), 
-                                                        text = 'Download'))))
-```
-
-
-```{r eval = T, echo = F, warning = FALSE, error = TRUE, tidy = FALSE, message = FALSE}
-
-tidytext::tidy(pesq_stm_fit, matrix = "theta", document_names = pesq_prep$meta$nome_do_projeto) |> 
-    dplyr::left_join(pesq |> dplyr::rename(document = nome_do_projeto)) |>
-    dplyr::distinct(.keep_all = TRUE) |> 
-    dplyr::arrange(document, topic) -> 
-    gamma_documents
-
-gamma_documents |>
-    dplyr::group_by(topic) |>
-    dplyr::arrange(dplyr::desc(gamma)) |>
-    dplyr::slice_head(n = 200) |>
-    dplyr::ungroup() ->
-    gamma_documents
-
-gamma_documents |>
-    dplyr::mutate(topic = paste('topic', topic, sep = '_')) |> 
-    dplyr::mutate(gamma = round(.data$gamma, digits = 3)) |> 
-    dplyr::select(document, topic, gamma, ano_inicio, descricao_do_projeto) -> 
-    tab_top_11
-
-rio::export(tab_top_11, 'rawfiles/stm2_tab_top_11.xlsx') 
-
-tab_top_11 |>
-    DT::datatable(
-        rownames = FALSE,
-        filter = 'bottom',
-        extensions = 'Buttons', 
-        options = list(
-                    dom = 'Blfrtip', pageLength = 5,
-                        columnDefs = list(list(visible = FALSE, targets = c(4))), 
-                        buttons = list(list(extend = 'colvis', columns = c(0, 1, 2, 4)))
-                        ))
-
-```
-
-[Baixar arquivo do MS Excel.](rawfiles/stm2_tab_top_11.xlsx)
-
-### 13 tópicos
-
-```{r, eval = T, echo = F}
-# ------------------------------
-## Modeling 
-
-# modelo sem metadados
-stm(documents = pesq_doc$documents, 
-    vocab = pesq_doc$vocab, 
-    K = 13, 
-    data = pesq_doc$meta,
-    verbose = F) ->
-    pesq_stm_fit
-
-tidytext::tidy(pesq_stm_fit) |>
-    dplyr::arrange(beta) |>
-    dplyr::group_by(topic) |>
-    dplyr::top_n(10, beta) |>
-    dplyr::arrange(-beta) |>
-    dplyr::select(topic, term) |>
-    dplyr::summarise(terms = list(term)) |>
-    dplyr::mutate(terms = purrr::map(terms, paste, collapse = ", ")) |> 
-    tidyr::unnest() ->
-    top_terms 
-
-tidytext::tidy(pesq_stm_fit, matrix = "gamma", document_names = pesq_prep$meta$nome_do_projeto) |>
-    group_by(topic) |>
-    summarise(gamma = mean(gamma)) |>
-    arrange(desc(gamma)) |>
-    left_join(top_terms, by = "topic") |>
-    mutate(topic = paste0("Topic ", topic), topic = reorder(topic, gamma)) ->
-    gamma_terms  
-
-gamma_terms |>
-    dplyr::mutate(topic = tolower(.data$topic)) |>
-    dplyr::mutate(topic = gsub(' ', '_', .data$topic)) |>
-    dplyr::mutate(gamma = round(.data$gamma, digits = 3)) |> 
-    DT::datatable(
-        extensions = 'Buttons', 
-        rownames = F, 
-        options = list(
-                    dom = 'Bfrtip', 
-                    pageLength = 25, 
-                    buttons = list(list(
-                                        extend = 'collection', 
-                                        buttons = list(list(extend = 'csv', filename = 'data'), 
-                                                        list(extend = 'excel', filename = 'data')), 
-                                                        text = 'Download'))))
-```
-
-
-```{r eval = T, echo = F, warning = FALSE, error = TRUE, tidy = FALSE, message = FALSE}
-
-tidytext::tidy(pesq_stm_fit, matrix = "theta", document_names = pesq_prep$meta$nome_do_projeto) |> 
-    dplyr::left_join(pesq |> dplyr::rename(document = nome_do_projeto)) |>
-    dplyr::distinct(.keep_all = TRUE) |> 
-    dplyr::arrange(document, topic) -> 
-    gamma_documents
-
-gamma_documents |>
-    dplyr::group_by(topic) |>
-    dplyr::arrange(dplyr::desc(gamma)) |>
-    dplyr::slice_head(n = 200) |>
-    dplyr::ungroup() ->
-    gamma_documents
-
-gamma_documents |>
-    dplyr::mutate(topic = paste('topic', topic, sep = '_')) |> 
-    dplyr::mutate(gamma = round(.data$gamma, digits = 3)) |> 
-    dplyr::select(document, topic, gamma, ano_inicio, descricao_do_projeto) -> 
-    tab_top_13
-
-rio::export(tab_top_13, 'rawfiles/stm2_tab_top_13.xlsx') 
-
-tab_top_13 |>
-    DT::datatable(
-        rownames = FALSE,
-        filter = 'bottom',
-        extensions = 'Buttons', 
-        options = list(
-                    dom = 'Blfrtip', pageLength = 5,
-                        columnDefs = list(list(visible = FALSE, targets = c(4))), 
-                        buttons = list(list(extend = 'colvis', columns = c(0, 1, 2, 4)))
-                        ))
-
-```
-
-[Baixar arquivo do MS Excel.](rawfiles/stm2_tab_top_13.xlsx)
-
-### 25 tópicos
-
-```{r, eval = T, echo = F}
-# ------------------------------
-## Modeling 
-
-# modelo sem metadados
-stm(documents = pesq_doc$documents, 
-    vocab = pesq_doc$vocab, 
-    K = 25, 
-    data = pesq_doc$meta,
-    verbose = F) ->
-    pesq_stm_fit
-
-tidytext::tidy(pesq_stm_fit) |>
-    dplyr::arrange(beta) |>
-    dplyr::group_by(topic) |>
-    dplyr::top_n(10, beta) |>
-    dplyr::arrange(-beta) |>
-    dplyr::select(topic, term) |>
-    dplyr::summarise(terms = list(term)) |>
-    dplyr::mutate(terms = purrr::map(terms, paste, collapse = ", ")) |> 
-    tidyr::unnest() ->
-    top_terms 
-
-tidytext::tidy(pesq_stm_fit, matrix = "gamma", document_names = pesq_prep$meta$nome_do_projeto) |>
-    group_by(topic) |>
-    summarise(gamma = mean(gamma)) |>
-    arrange(desc(gamma)) |>
-    left_join(top_terms, by = "topic") |>
-    mutate(topic = paste0("Topic ", topic), topic = reorder(topic, gamma)) ->
-    gamma_terms  
-
-gamma_terms |>
-    dplyr::mutate(topic = tolower(.data$topic)) |>
-    dplyr::mutate(topic = gsub(' ', '_', .data$topic)) |>
-    dplyr::mutate(gamma = round(.data$gamma, digits = 3)) |> 
-    DT::datatable(
-        extensions = 'Buttons', 
-        rownames = F, 
-        options = list(
-                    dom = 'Bfrtip', 
-                    pageLength = 25, 
-                    buttons = list(list(
-                                        extend = 'collection', 
-                                        buttons = list(list(extend = 'csv', filename = 'data'), 
-                                                        list(extend = 'excel', filename = 'data')), 
-                                                        text = 'Download'))))
-```
-
-
-```{r eval = T, echo = F, warning = FALSE, error = TRUE, tidy = FALSE, message = FALSE}
-
-tidytext::tidy(pesq_stm_fit, matrix = "theta", document_names = pesq_prep$meta$nome_do_projeto) |> 
-    dplyr::left_join(pesq |> dplyr::rename(document = nome_do_projeto)) |>
-    dplyr::distinct(.keep_all = TRUE) |> 
-    dplyr::arrange(document, topic) -> 
-    gamma_documents
-
-gamma_documents |>
-    dplyr::group_by(topic) |>
-    dplyr::arrange(dplyr::desc(gamma)) |>
-    dplyr::slice_head(n = 200) |>
-    dplyr::ungroup() ->
-    gamma_documents
-
-gamma_documents |>
-    dplyr::mutate(topic = paste('topic', topic, sep = '_')) |> 
-    dplyr::mutate(gamma = round(.data$gamma, digits = 3)) |> 
-    dplyr::select(document, topic, gamma, ano_inicio, descricao_do_projeto) -> 
-    tab_top_25
-
-rio::export(tab_top_25, 'rawfiles/stm2_tab_top_25.xlsx') 
-
-tab_top_25 |>
-    DT::datatable(
-        rownames = FALSE,
-        filter = 'bottom',
-        extensions = 'Buttons', 
-        options = list(
-                    dom = 'Blfrtip', pageLength = 5,
-                        columnDefs = list(list(visible = FALSE, targets = c(4))), 
-                        buttons = list(list(extend = 'colvis', columns = c(0, 1, 2, 4)))
-                        ))
-
-```
-
-[Baixar arquivo do MS Excel.](rawfiles/stm2_tab_top_25.xlsx)
 
