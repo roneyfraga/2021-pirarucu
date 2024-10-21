@@ -2,4 +2,6 @@ _book/
 _bookdown_files/
 _main.Rmd
 old_chapter/
-
+._*
+*_cache/
+*_files

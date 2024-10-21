@@ -1,13 +1,9 @@
-Welcome! 
 
-This is a minimal example of a book based on R Markdown and **bookdown** (https://github.com/rstudio/bookdown). 
+- **title**: When the periphery matters: A computational analysis through network science and topic modeling of Pirarucu scientific production
+- **título**: Quando a periferia importa: Uma análise computacional por meio da ciência de redes e modelagem de tópicos da produção científica sobre Pirarucu
+- **authors**: Maria Sylvia Macchione Saes, Roney Fraga Souza, Elis Regina Monte Feitosa, Adalberto Luis Val, Jacques Marcovitch
+- **journal**: Revista de Economia e Sociologia Rural
+- **doi**: <https://doi.org/10.1590/1806-9479.2025.284419>
 
-This template provides a skeleton file structure that you can edit to create your book. 
+Full report available here: <https://roneyfraga.com/projects/2021-pirarucu>
 
-The contents inside the .Rmd files provide some pointers to help you get started, but feel free to also delete the content in each file and start fresh.
-
-Additional resources:
-
-The **bookdown** book: https://bookdown.org/yihui/bookdown/
-
-The **bookdown** package reference site: https://pkgs.rstudio.com/bookdown
