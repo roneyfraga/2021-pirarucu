@@ -186,4 +186,51 @@ dplyr::filter(scopus, grepl(buscar, ignore.case = T, TI))
 # Effect of pond fertilization on growth performance of pirarucu (Arapaima gigas) during grow-out phase
 # http://dx.doi.org/10.3856/vol50-issue1-fulltext-2617  
 
+# ------------------------------
+### rede de colaboração entre países
+# ------------------------------
 
+library(ggraph)
+library(igraph)
+
+net3
+
+net3 |>
+  tidygraph::activate(nodes) |>
+  dplyr::filter(qtde_artigos >= 3) ->
+  net4
+
+ggraph(net4, layout = 'dh') + 
+  geom_edge_link() + 
+  geom_node_point(aes(size = qtde_artigos, color = factor(group))) +
+  theme(legend.position = 'bottom')
+
+
+# Load libraries
+library(igraph)
+library(ggraph)
+
+# Create a data frame for the hierarchical structure
+d1 <- data.frame(from = "origin", to = paste("group", seq(1, 10), sep = ""))
+d2 <- data.frame(from = rep(d1$to, each = 10), to = paste("subgroup", seq(1, 100), sep = "_"))
+hierarchy <- rbind(d1, d2)
+
+# Create a vertices data frame
+vertices <- data.frame(name = unique(c(as.character(hierarchy$from), as.character(hierarchy$to))))
+
+# Create the graph object
+mygraph <- graph_from_data_frame(hierarchy, vertices = vertices)
+
+# Visualize the hierarchical graph
+ggraph(mygraph, layout = 'dendrogram', circular = FALSE) +
+  geom_edge_link() +
+  theme_void()
+
+# For a circular layout
+ggraph(mygraph, layout = 'dendrogram', circular = TRUE) +
+  geom_edge_diagonal() +
+  theme_void()
+
+
+#
+threeFieldsPlot(scientometrics, fields=c("DE","AU","CR"),n=c(20,20,20))

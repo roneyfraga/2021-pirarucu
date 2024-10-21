@@ -13,7 +13,7 @@ Query
 
 Search performed on 2022-11-12.
 
-```{r eval = F, echo = F, warning = F, error = T, tidy = F, message = F}
+```{r eval = F, echo = T, warning = F, error = T, tidy = F, message = F}
 
 M <- bibliometrix::convert2df(file = 'bibs/scopus_2022-11-12.bib', dbsource = "scopus", format = "bibtex")
 
@@ -29,7 +29,7 @@ M |>
 ## Countries collaboration netowrk
 
 
-```{r eval = F, echo = F, warning = FALSE, error = TRUE, tidy = FALSE, message = FALSE}
+```{r eval = F, echo = T, warning = FALSE, error = TRUE, tidy = FALSE, message = FALSE}
 
 rio::import('rawfiles/m_scopus.rds') -> M 
 
@@ -98,7 +98,7 @@ res |>
     {\(x) rio::export(x, 'rawfiles/scopus_financiadores.xlsx') }() 
 ```
 
-```{r eval = T, echo = F, warning = FALSE, error = TRUE, tidy = FALSE, message = FALSE}
+```{r eval = T, echo = T, warning = FALSE, error = TRUE, tidy = FALSE, message = FALSE}
 
 rio::import('rawfiles/m_scopus.rds') -> 
     M 
@@ -127,7 +127,7 @@ M2 |>
     dplyr::select(SR, id, affiliation_country) |>
     dplyr::distinct(.keep_all = TRUE) |>
     dplyr::group_by(SR, id) |>
-    dplyr::summarise(qtde_paises = n()) |>
+    dplyr::summarise(qtde_paises = dplyr::n()) |>
     dplyr::ungroup() ->
     artigo_qtde_paises
 
@@ -231,8 +231,11 @@ eb <- igraph::cluster_louvain(as.undirected(net2))
 
 net2 |>
     tidygraph::activate(nodes) |>
-    tibble::as_tibble() |>
-    dplyr::mutate(eb = eb$membership) |>
+    dplyr::mutate(group = eb$membership) ->
+    net3
+
+net3 |>
+    tidygraph::activate(nodes) |>
     group_by(eb) |>
     slice_head(n = 4) |>
     print(n = Inf)
@@ -250,7 +253,7 @@ writePajek(V(net2)$qtde_artigos, 'networks/m_scopus_col_cou.vec')
 
 Growth rate for documents obtained from Scopus for the period 2000 to 2021.
 
-```{r eval = TRUE, echo = F, warning = FALSE, error = TRUE, tidy = FALSE, message = FALSE}
+```{r eval = TRUE, echo = T, warning = FALSE, error = TRUE, tidy = FALSE, message = FALSE}
 
 M <- rio::import('rawfiles/m_scopus.rds')
 
@@ -324,7 +327,7 @@ Analysis 2000-2021
 
 __Growth rate of the entire Scopus.__
 
-```{r eval = TRUE, echo = F, warning = FALSE, error = TRUE, tidy = FALSE, message = FALSE}
+```{r eval = TRUE, echo = T, warning = FALSE, error = TRUE, tidy = FALSE, message = FALSE}
 
 d0 <- read.table('rawfiles/Scopus-38425968-Analyze-Year.csv', header = T, sep = ',', skip = 3) 
 
@@ -361,7 +364,7 @@ Analysis 2000-2021
 
 ## Top Journals
 
-```{r eval = T , echo = F}
+```{r eval = T , echo = T}
 
 results <- bibliometrix::biblioAnalysis(M, sep = ";")
 
@@ -383,7 +386,7 @@ S$MostRelSources |>
 
 ## Most cited papers
 
-```{r eval = T , echo = F}
+```{r eval = T , echo = T}
 
 M |>
     tibble::as_tibble() |>
@@ -406,7 +409,7 @@ S$MostCitedPapers |>
 
 ## Analysis by author
 
-```{r eval = F , echo = F}
+```{r eval = F , echo = T}
 
 # topAU <- authorProdOverTime(M, k = 10, graph = TRUE)
 
@@ -522,7 +525,7 @@ ggsave('images/authorProdOverTime_nao_identificado.png', width = 22, height = 16
 ![authorProdOverTime](images/authorProdOverTime.png)
 
 
-```{r eval = T , echo = F}
+```{r eval = T , echo = T}
 
 NetMatrix <- biblioNetwork(M, analysis = "collaboration", network = "authors", sep = ";")
 
@@ -563,7 +566,7 @@ writePajek(V(net2)$artigos, 'networks/m_scopus_col_aut.vec')
 
 Number of articles with at least one author from the country.
 
-```{r eval = T, echo = F}
+```{r eval = T, echo = T}
 
 paises_artigos |>
     dplyr::filter(!is.na(name)) |> 

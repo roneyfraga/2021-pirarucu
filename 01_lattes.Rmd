@@ -18,7 +18,7 @@
 
 Articles with two or more authors from the same state have been normalized, only one author counts for each state.
 
-```{r eval = T, echo = F}
+```{r eval = T, echo = T}
 
 rio::import('rawfiles/endereco3.rds') ->
     endereco3
@@ -50,7 +50,7 @@ artigos |>
 
 Papers List. 
 
-```{r eval = T, echo = F}
+```{r eval = T, echo = T}
 
 artigos |> 
     dplyr::select(- id, - doi) |>
@@ -72,7 +72,7 @@ artigos |>
 
 ## Books on Lattes 
 
-```{r eval = T, echo = F}
+```{r eval = T, echo = T}
 
 rio::import('rawfiles/livros.rds') |>
     dplyr::mutate(uf2 = '') ->
@@ -104,7 +104,7 @@ livros |>
 
 Books list.
 
-```{r eval = T, echo = F}
+```{r eval = T, echo = T}
 
 livros |> 
     dplyr::select(titulo_do_livro, ano, isbn) |>
@@ -126,7 +126,7 @@ livros |>
 
 ## Books Chapters on Lattes 
 
-```{r eval = T, echo = F}
+```{r eval = T, echo = T}
 
 rio::import('rawfiles/capitulos_livros.rds') |>
     tibble::tibble() ->
@@ -155,7 +155,7 @@ capitulos_livros |>
 
 Books Chapters list.
 
-```{r eval = T, echo = F}
+```{r eval = T, echo = T}
 
 capitulos_livros |> 
     dplyr::select(titulo_do_capitulo_do_livro, ano, isbn) |>
@@ -178,7 +178,7 @@ capitulos_livros |>
 
 ## Projects on Lattes 
 
-```{r eval = T, echo = F}
+```{r eval = T, echo = T}
 
 rio::import('rawfiles/projetos.rds') |>
     tibble::tibble() ->
@@ -207,7 +207,7 @@ projetos |>
 
 Projects list.
 
-```{r eval = T, echo = F}
+```{r eval = T, echo = T}
 
 projetos |> 
     dplyr::select(nome_do_projeto, ano_inicio, ano_fim) |>
@@ -229,7 +229,7 @@ projetos |>
 
 ## Undergraduate Monographs on Lattes 
 
-```{r eval = T, echo = F}
+```{r eval = T, echo = T}
 
 rio::import('rawfiles/formacao_graduacao.rds') |>
     tibble::tibble() ->
@@ -253,7 +253,7 @@ monografias |>
 
 University.
 
-```{r eval = T, echo = F}
+```{r eval = T, echo = T}
 
 monografias |>
    dplyr::count(nome_instituicao, sort = T) |>
@@ -274,7 +274,7 @@ monografias |>
 State.
 
 
-```{r eval = T, echo = F}
+```{r eval = T, echo = T}
 
 monografias |>
     dplyr::select(id, nome_instituicao) |>
@@ -313,7 +313,7 @@ rio::import('rawfiles/monografia_nouf_v2.xlsx') |>
 
 ## Master's Dissertations on Lattes 
 
-```{r eval = T, echo = F}
+```{r eval = T, echo = T}
 
 rio::import('rawfiles/formacao_mestrado.rds') |>
     tibble::tibble() ->
@@ -337,7 +337,7 @@ mestrado |>
 
 University.
 
-```{r eval = T, echo = F}
+```{r eval = T, echo = T}
 
 mestrado |>
    dplyr::count(nome_instituicao, sort = T) |>
@@ -357,7 +357,7 @@ mestrado |>
 
 State.
 
-```{r eval = T, echo = F}
+```{r eval = T, echo = T}
 
 mestrado |>
     dplyr::select(id, nome_instituicao) |>
@@ -395,7 +395,7 @@ rio::import('rawfiles/mestrado_nouf_v2.xlsx') |>
 
 ## Doctoral Theses on Lattes 
 
-```{r eval = T, echo = F}
+```{r eval = T, echo = T}
 
 rio::import('rawfiles/formacao_doutorado.rds') |>
     tibble::tibble() ->
@@ -419,7 +419,7 @@ doutorado |>
 
 University.
 
-```{r eval = T, echo = F}
+```{r eval = T, echo = T}
 
 doutorado |>
    dplyr::count(nome_instituicao, sort = T) |>
@@ -439,7 +439,7 @@ doutorado |>
 
 State.
 
-```{r eval = T, echo = F}
+```{r eval = T, echo = T}
 
 doutorado |>
     dplyr::select(id, nome_instituicao) |>
@@ -477,7 +477,7 @@ rio::import('rawfiles/doutorado_nouf_v2.xlsx') |>
 
 ## Articles - collaboration network among states 
 
-```{r eval = T, echo = F}
+```{r eval = T, echo = T}
 
 artigos |>
     dplyr::left_join(endereco3) |>
@@ -560,7 +560,7 @@ Colors of the nodes per region of Brazil, or foreign country. Size of the node p
 
 ## Articles - author collaboration network
 
-```{r eval = T, echo = F}
+```{r eval = T, echo = T}
 
 artigos |>
     dplyr::left_join(endereco3) |>
@@ -660,7 +660,7 @@ The addresses were obtained via the Lattes professional address register, or fro
 
 It is useful to check the addresses of the main authors.
 
-```{r eval = T, echo = F}
+```{r eval = T, echo = T}
 
 net |>
     activate(nodes) |>

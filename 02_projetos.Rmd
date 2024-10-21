@@ -1,7 +1,7 @@
 
 # Lattes Projects
 
-```{r, eval = T, echo = F}
+```{r, eval = T, echo = T}
 
 rio::import('rawfiles/projetos.rds') |>
     tibble::tibble() ->
@@ -25,7 +25,7 @@ projetos |>
                                                         text = 'Download'))))
 ```
 
-```{r, eval = T, echo = F}
+```{r, eval = T, echo = T}
 
 projetos |>
     dplyr::filter(natureza == 'PESQUISA') ->
@@ -55,7 +55,7 @@ pesq |>
 
 Project funders.
 
-```{r, eval = T, echo = F}
+```{r, eval = T, echo = T}
 
 projetos |>
     dplyr::select(nome_do_projeto, id, financiadores) |>
@@ -72,7 +72,7 @@ projetos |>
 
 ## Structural Topic Modeling 
 
-```{r, eval = T, echo = F}
+```{r, eval = T, echo = T}
 
 stm::textProcessor(documents = pesq$texto, 
                    metadata = pesq[, c('nome_do_projeto', 'descricao_do_projeto', 'ano_inicio', 'ano_fim')], 
@@ -152,7 +152,7 @@ ggplot2::ggplot(res, aes(x = semcoh, y = exclus)) +
 
 **15 topics**
 
-```{r, eval = T, echo = F}
+```{r, eval = T, echo = T}
 # ------------------------------
 ## Modeling 
 
@@ -214,7 +214,7 @@ topic_proportion3 |>
 ```
 
 
-```{r eval = T, echo = F, warning = FALSE, error = TRUE, tidy = FALSE, message = FALSE}
+```{r eval = T, echo = T, warning = FALSE, error = TRUE, tidy = FALSE, message = FALSE}
 
 tidytext::tidy(pesq_stm_fit, matrix = "theta", document_names = pesq_prep$meta$nome_do_projeto) |> 
     dplyr::left_join(pesq |> dplyr::rename(document = nome_do_projeto)) |>
